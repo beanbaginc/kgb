@@ -118,7 +118,7 @@ want to use the spy.
 ### Creating a spy that calls the original function
 
 ```python
-    agency.spy_on(obj.function)
+agency.spy_on(obj.function)
 ```
 
 When your spy is called, the original function will be called as well.
@@ -128,7 +128,7 @@ It won't even know you were there.
 ### Creating a spy that blocks the function call
 
 ```python
-    agency.spy_on(obj.function, call_original=False)
+agency.spy_on(obj.function, call_original=False)
 ```
 
 Useful if you want to know that a function was called, but don't want the
@@ -138,7 +138,7 @@ original function to actually get the call.
 ### Creating a spy that reroutes to a fake function
 
 ```python
-    agency.spy_on(obj.function, call_fake=my_fake_function)
+agency.spy_on(obj.function, call_fake=my_fake_function)
 ```
 
 Fake return values or operations without anybody knowing.
@@ -147,11 +147,11 @@ Fake return values or operations without anybody knowing.
 ### Stopping a spy operation
 
 ```python
-    # For bound methods...
-    obj.function.unspy()
+# For bound methods...
+obj.function.unspy()
 
-    # For standard functions...
-    function.spy.unspy()
+# For standard functions...
+function.spy.unspy()
 ```
 
 Do your job and get out.
@@ -160,13 +160,13 @@ Do your job and get out.
 ### Check the call history
 
 ```python
-    # For bound methods...
-    for call in obj.function.calls:
-        print calls.args, calls.kwargs
+# For bound methods...
+for call in obj.function.calls:
+    print calls.args, calls.kwargs
 
-    # For standard functions...
-    for call in function.spy.calls:
-        print calls.args, calls.kwargs
+# For standard functions...
+for call in function.spy.calls:
+    print calls.args, calls.kwargs
 ```
 
 See how many times your spy's intercepted a function call, and what was passed.
@@ -175,13 +175,13 @@ See how many times your spy's intercepted a function call, and what was passed.
 ### Check the last call
 
 ```python
-    # For bound methods...
-    print obj.function.last_call.args
-    print obj.function.last_call.kwargs
+# For bound methods...
+print obj.function.last_call.args
+print obj.function.last_call.kwargs
 
-    # For standard functions...
-    print function.spy.last_call.args
-    print function.spy.last_call.kwargs
+# For standard functions...
+print function.spy.last_call.args
+print function.spy.last_call.kwargs
 ```
 
 Also a good way of knowing whether it's even been called. last_call will be
@@ -191,11 +191,11 @@ Also a good way of knowing whether it's even been called. last_call will be
 ### Check if the function was ever called with certain arguments
 
 ```python
-    # For bound methods...
-    self.assertTrue(obj.function.called_with('foo', bar='baz'))
+# For bound methods...
+self.assertTrue(obj.function.called_with('foo', bar='baz'))
 
-    # For standard functions...
-    self.assertTrue(function.spy.called_with('foo', bar='baz'))
+# For standard functions...
+self.assertTrue(function.spy.called_with('foo', bar='baz'))
 ```
 
 The whole call history will be searched. The arguments provided must match
@@ -205,11 +205,11 @@ the call exactly. No mixing of args and kwargs.
 ### Check if the last call had certain arguments
 
 ```python
-    # For bound methods...
-    self.assertTrue(obj.function.last_called_with('foo', bar='baz'))
+# For bound methods...
+self.assertTrue(obj.function.last_called_with('foo', bar='baz'))
 
-    # For standard functions...
-    self.assertTrue(function.spy.last_called_with('foo', bar='baz'))
+# For standard functions...
+self.assertTrue(function.spy.last_called_with('foo', bar='baz'))
 ```
 
 Just like `called_with`, but only the most recent call be checked.
@@ -218,11 +218,11 @@ Just like `called_with`, but only the most recent call be checked.
 ### Reset all the calls
 
 ```python
-    # For bound methods...
-    obj.function.reset_calls()
+# For bound methods...
+obj.function.reset_calls()
 
-    # For standard functions...
-    function.spy.reset_calls()
+# For standard functions...
+function.spy.reset_calls()
 ```
 
 Wipe away the call history. Nobody will know.

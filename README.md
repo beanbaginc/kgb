@@ -31,6 +31,8 @@ or:
 
     $ pip install kgb
 
+kgb supports Python 2.5 through 2.7.
+
 
 Spying for fun and profit
 -------------------------

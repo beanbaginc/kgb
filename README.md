@@ -20,8 +20,19 @@ Spies are awesome.
 (If you've used [Jasmine](http://pivotal.github.io/jasmine/), you know this.)
 
 
-Installation
-------------
+Where is kgb used?
+------------------
+
+We use kgb at [Beanbag](http://www.beanbaginc.com/) for our
+[Review Board](http://www.reviewboard.org/) and
+[RBCommons](https://rbcommons.com/) products.
+
+If you use kgb, let us know and we'll add you to a shiny new list on this
+page.
+
+
+Installing kgb
+--------------
 
 Before you can use kgb, you need to install it. You can do this by typing:
 

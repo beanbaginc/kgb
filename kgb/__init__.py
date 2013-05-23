@@ -47,3 +47,9 @@ def is_release():
 
 __version_info__ = VERSION[:-1]
 __version__ = get_package_version()
+
+
+__all__ = [
+    'SpyAgency', 'spy_on', 'VERSION', '__version__', '__version_info__',
+    'get_version_string', 'get_package_version', 'is_release',
+]

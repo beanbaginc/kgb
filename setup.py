@@ -30,13 +30,14 @@ except ImportError:
     use_setuptools()
     from setuptools import setup, find_packages
 
+from kgb import get_package_version
+
 
 PACKAGE_NAME = 'kgb'
-VERSION = '0.5'
 
 
 setup(name=PACKAGE_NAME,
-      version=VERSION,
+      version=get_package_version(),
       license='MIT',
       description='Utilities for spying on function calls in unit tests.',
       packages=find_packages(),

@@ -1,0 +1,5 @@
+recursive-include contrib *
+include AUTHORS
+include NEWS
+include README.md
+include ez_setup.py

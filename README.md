@@ -190,6 +190,19 @@ Also a good way of knowing whether it's even been called. last_call will be
 `None` if nobody's called yet.
 
 
+### Check if the function was ever called
+
+```python
+# For bound methods...
+self.assertTrue(obj.function.called)
+
+# For standard functions...
+self.assertTrue(function.spy.called)
+```
+
+If the function was ever called at all, this will let you know.
+
+
 ### Check if the function was ever called with certain arguments
 
 ```python

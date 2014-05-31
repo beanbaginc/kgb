@@ -50,7 +50,13 @@ class FunctionSpy(object):
             self.func = None
 
         if hasattr(func, 'im_self'):
-            self.owner = func.im_self
+            if func.im_self:
+                # This is a bound function on an instance of a class.
+                self.owner = func.im_self
+            else:
+                # This is an unbound function on a class.
+                self.owner = func.im_class
+
             setattr(self.owner, self.func_name, self)
         else:
             # Standard functions can't be replaced. Unlike a bound function,

@@ -330,14 +330,16 @@ class FunctionSpyTests(BaseTestCase):
     def test_unspy(self):
         """Testing FunctionSpy.unspy"""
         orig_code = something_awesome.func_code
-        spy = self.agency.spy_on(something_awesome)
+        spy = self.agency.spy_on(something_awesome, call_fake=lambda: 'spy!')
 
         self.assertTrue(hasattr(something_awesome, 'spy'))
         self.assertEqual(something_awesome.spy, spy)
+        self.assertEqual(something_awesome(), 'spy!')
 
         spy.unspy()
         self.assertFalse(hasattr(something_awesome, 'spy'))
         self.assertEqual(something_awesome.func_code, orig_code)
+        self.assertEqual(something_awesome(), 'Tada!')
 
     def test_unspy_and_bound_method(self):
         """Testing FunctionSpy.unspy and bound method"""

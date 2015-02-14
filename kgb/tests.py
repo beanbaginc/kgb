@@ -473,6 +473,19 @@ class ContextManagerTests(BaseTestCase):
 
         self.assertEqual(obj.do_math, orig_do_math)
 
+    def test_expose_spy(self):
+        """Testing spy_on exposes `spy` via context manager"""
+        obj = MathClass()
+        orig_do_math = obj.do_math
+
+        with spy_on(obj.do_math) as spy:
+            self.assertTrue(isinstance(spy, FunctionSpy))
+
+            result = obj.do_math()
+            self.assertEqual(result, 3)
+
+        self.assertEqual(obj.do_math, orig_do_math)
+
 
 class MixinTests(SpyAgency, unittest.TestCase):
     def test_spy_on(self):

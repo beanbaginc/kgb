@@ -21,6 +21,6 @@ def spy_on(*args, **kwargs):
     agency = SpyAgency()
     spy = agency.spy_on(*args, **kwargs)
 
-    yield
+    yield spy
 
     spy.unspy()

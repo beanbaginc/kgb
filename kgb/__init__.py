@@ -8,7 +8,7 @@ from kgb.contextmanagers import spy_on
 #
 #   (Major, Minor, Micro, alpha/beta/rc/final, Release Number, Released)
 #
-VERSION = (0, 5, 1, 'final', 0, True)
+VERSION = (0, 5, 2, 'final', 0, True)
 
 
 def get_version_string():

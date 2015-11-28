@@ -132,6 +132,26 @@ class FunctionSpyTests(BaseTestCase):
         self.assertEqual(spy.func_name, 'class_do_math')
         self.assertEqual(spy.owner, MathClass)
 
+    def test_construction_with_falsy_im_self(self):
+        """Testing FunctionSpy construction with a falsy function.im_self"""
+        class MyObject(dict):
+            def foo(self):
+                pass
+
+        my_object = MyObject()
+        orig_foo = my_object.foo
+
+        # Ensure it's falsy.
+        self.assertFalse(my_object)
+
+        spy = self.agency.spy_on(my_object.foo)
+
+        self.assertEqual(spy.func, orig_foo)
+        self.assertEqual(my_object.foo, spy)
+        self.assertNotEqual(MyObject.foo, spy)
+        self.assertEqual(spy.func_name, 'foo')
+        self.assertEqual(spy.owner, my_object)
+
     def test_call_with_call_fake(self):
         """Testing FunctionSpy calls with call_fake"""
         self.agency.spy_on(something_awesome,

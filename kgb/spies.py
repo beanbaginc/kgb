@@ -50,7 +50,7 @@ class FunctionSpy(object):
             self.func = None
 
         if hasattr(func, 'im_self'):
-            if func.im_self:
+            if func.im_self is not None:
                 # This is a bound function on an instance of a class.
                 self.owner = func.im_self
             else:

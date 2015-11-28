@@ -1,3 +1,8 @@
+version 0.5.3 final (28-November-2015):
+	* Objects that evaluate to false (such as objects inheriting from dict)
+	  can now be spied upon.
+
+
 version 0.5.2 final (17-March-2015):
 	* Expose the spy when using spy_on as a context manager.
 

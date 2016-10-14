@@ -17,7 +17,7 @@ to go through as normal, to block it, or to reroute it to another function.
 
 Spies are awesome.
 
-(If you've used [Jasmine](http://pivotal.github.io/jasmine/), you know this.)
+(If you've used [Jasmine](https://jasmine.github.io/), you know this.)
 
 
 Where is kgb used?

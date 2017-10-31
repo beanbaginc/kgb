@@ -1,21 +1,10 @@
-from __future__ import unicode_literals, with_statement
+from __future__ import unicode_literals
 
 import inspect
-import re
 import types
-import unittest
 
-from kgb.agency import SpyAgency
-from kgb.contextmanagers import spy_on
-from kgb.spies import FunctionSpy, FUNC_CODE_ATTR, FUNC_NAME_ATTR
-
-
-def something_awesome():
-    return 'Tada!'
-
-
-def fake_something_awesome():
-    return '\o/'
+from kgb.spies import FUNC_CODE_ATTR, FUNC_NAME_ATTR
+from kgb.tests.base import MathClass, TestCase
 
 
 def do_math(a=1, b=2, *args, **kwargs):
@@ -30,50 +19,16 @@ def fake_class_do_math(self, a=1, b=2, *args, **kwargs):
     return a - b
 
 
-class MathClass(object):
-    def do_math(self, a=1, b=2, *args, **kwargs):
-        return a + b
-
-    @classmethod
-    def class_do_math(cls, a=2, b=5, *args, **kwargs):
-        return a * b
+def something_awesome():
+    return 'Tada!'
 
 
-class BaseTestCase(unittest.TestCase):
-    """Base class for test cases for kgb."""
-
-    ws_re = re.compile(r'\s+')
-
-    def setUp(self):
-        self.agency = SpyAgency()
-        self.orig_class_do_math = MathClass.class_do_math
-
-    def tearDown(self):
-        MathClass.class_do_math = self.orig_class_do_math
-        self.agency.unspy_all()
-
-    def shortDescription(self):
-        """Return the description of the current test.
-
-        This changes the default behavior to replace all newlines with spaces,
-        allowing a test description to span lines. It should still be kept
-        short, though.
-
-        Returns:
-            bytes:
-            The description of the test.
-        """
-        doc = self._testMethodDoc
-
-        if doc is not None:
-            doc = doc.split('\n\n', 1)[0]
-            doc = self.ws_re.sub(' ', doc).strip()
-
-        return doc
+def fake_something_awesome():
+    return '\o/'
 
 
-class FunctionSpyTests(BaseTestCase):
-    """Test cases for FunctionSpy."""
+class FunctionSpyTests(TestCase):
+    """Test cases for kgb.spies.FunctionSpy."""
 
     def test_construction_with_call_precedence(self):
         """Testing FunctionSpy construction with call option precedence"""
@@ -585,94 +540,3 @@ class FunctionSpyTests(BaseTestCase):
         self.assertEqual(varargs, 'args')
         self.assertEqual(keywords, 'kwargs')
         self.assertEqual(defaults, (2, 5))
-
-
-class SpyAgencyTests(BaseTestCase):
-    def test_spy_on(self):
-        """Testing SpyAgency.spy_on"""
-        obj = MathClass()
-
-        spy = self.agency.spy_on(obj.do_math)
-        self.assertEqual(self.agency.spies, [spy])
-
-    def test_unspy(self):
-        """Testing SpyAgency.unspy"""
-        obj = MathClass()
-        orig_do_math = obj.do_math
-
-        spy = self.agency.spy_on(obj.do_math)
-        self.assertEqual(self.agency.spies, [spy])
-
-        self.agency.unspy(obj.do_math)
-        self.assertEqual(self.agency.spies, [])
-
-        self.assertEqual(obj.do_math, orig_do_math)
-
-    def test_unspy_all(self):
-        """Testing SpyAgency.unspy_all"""
-        obj = MathClass()
-        orig_do_math = obj.do_math
-
-        spy1 = self.agency.spy_on(obj.do_math)
-        spy2 = self.agency.spy_on(MathClass.class_do_math)
-
-        self.assertEqual(self.agency.spies, [spy1, spy2])
-
-        self.agency.unspy_all()
-        self.assertEqual(self.agency.spies, [])
-
-        self.assertEqual(obj.do_math, orig_do_math)
-        self.assertEqual(MathClass.class_do_math, self.orig_class_do_math)
-
-
-class ContextManagerTests(BaseTestCase):
-    """Unit tests for context managers"""
-    def test_spy_on(self):
-        """Testing spy_on context manager"""
-        obj = MathClass()
-        orig_do_math = obj.do_math
-
-        with spy_on(obj.do_math):
-            self.assertTrue(isinstance(obj.do_math, FunctionSpy))
-
-            result = obj.do_math()
-            self.assertEqual(result, 3)
-
-        self.assertEqual(obj.do_math, orig_do_math)
-
-    def test_expose_spy(self):
-        """Testing spy_on exposes `spy` via context manager"""
-        obj = MathClass()
-        orig_do_math = obj.do_math
-
-        with spy_on(obj.do_math) as spy:
-            self.assertTrue(isinstance(spy, FunctionSpy))
-
-            result = obj.do_math()
-            self.assertEqual(result, 3)
-
-        self.assertEqual(obj.do_math, orig_do_math)
-
-
-class MixinTests(SpyAgency, unittest.TestCase):
-    def test_spy_on(self):
-        """Testing SpyAgency mixed in with spy_on"""
-        obj = MathClass()
-
-        self.spy_on(obj.do_math)
-        self.assertTrue(isinstance(obj.do_math, FunctionSpy))
-
-        result = obj.do_math()
-        self.assertEqual(result, 3)
-
-    def test_tear_down(self):
-        """Testing SpyAgency mixed in with tearDown"""
-        obj = MathClass()
-        orig_do_math = obj.do_math
-
-        self.spy_on(obj.do_math)
-        self.assertTrue(isinstance(obj.do_math, FunctionSpy))
-
-        self.tearDown()
-
-        self.assertEqual(obj.do_math, orig_do_math)

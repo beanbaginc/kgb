@@ -1,3 +1,10 @@
+version 1.0 final (TBD):
+	* Added support for Python 3, including keyword-only arguments.
+
+	* Function signatures for spies now mimic that of the spied-on functions,
+	  allowing Python's getargspec() to work.
+
+
 version 0.5.3 final (28-November-2015):
 	* Objects that evaluate to false (such as objects inheriting from dict)
 	  can now be spied upon.

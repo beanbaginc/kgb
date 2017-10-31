@@ -197,7 +197,7 @@ print function.spy.last_call.args
 print function.spy.last_call.kwargs
 ```
 
-Also a good way of knowing whether it's even been called. last_call will be
+Also a good way of knowing whether it's even been called. `last_call` will be
 `None` if nobody's called yet.
 
 

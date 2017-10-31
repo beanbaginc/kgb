@@ -1,4 +1,4 @@
-from __future__ import with_statement
+from __future__ import unicode_literals, with_statement
 
 import inspect
 import re
@@ -7,7 +7,7 @@ import unittest
 
 from kgb.agency import SpyAgency
 from kgb.contextmanagers import spy_on
-from kgb.spies import FunctionSpy
+from kgb.spies import FunctionSpy, FUNC_CODE_ATTR, FUNC_NAME_ATTR
 
 
 def something_awesome():
@@ -89,7 +89,8 @@ class FunctionSpyTests(BaseTestCase):
 
         self.assertTrue(hasattr(something_awesome, 'spy'))
         self.assertEqual(something_awesome.spy, spy)
-        self.assertEqual(spy.func.func_name, fake_something_awesome.func_name)
+        self.assertEqual(getattr(spy.func, FUNC_NAME_ATTR),
+                         getattr(fake_something_awesome, FUNC_NAME_ATTR))
         self.assertEqual(spy.orig_func, something_awesome)
         self.assertEqual(spy.func_name, 'something_awesome')
         self.assertEqual(spy.owner, None)
@@ -141,7 +142,8 @@ class FunctionSpyTests(BaseTestCase):
 
         self.assertTrue(hasattr(something_awesome, 'spy'))
         self.assertEqual(something_awesome.spy, spy)
-        self.assertEqual(spy.func.func_name, something_awesome.func_name)
+        self.assertEqual(getattr(spy.func, FUNC_NAME_ATTR),
+                         getattr(something_awesome, FUNC_NAME_ATTR))
         self.assertEqual(spy.orig_func, something_awesome)
         self.assertEqual(spy.func_name, 'something_awesome')
         self.assertEqual(spy.owner, None)
@@ -461,7 +463,7 @@ class FunctionSpyTests(BaseTestCase):
 
     def test_unspy(self):
         """Testing FunctionSpy.unspy"""
-        orig_code = something_awesome.func_code
+        orig_code = getattr(something_awesome, FUNC_CODE_ATTR)
         spy = self.agency.spy_on(something_awesome, call_fake=lambda: 'spy!')
 
         self.assertTrue(hasattr(something_awesome, 'spy'))
@@ -470,7 +472,7 @@ class FunctionSpyTests(BaseTestCase):
 
         spy.unspy()
         self.assertFalse(hasattr(something_awesome, 'spy'))
-        self.assertEqual(something_awesome.func_code, orig_code)
+        self.assertEqual(getattr(something_awesome, FUNC_CODE_ATTR), orig_code)
         self.assertEqual(something_awesome(), 'Tada!')
 
     def test_unspy_and_bound_method(self):

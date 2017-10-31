@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 from contextlib import contextmanager
 
 from kgb.agency import SpyAgency

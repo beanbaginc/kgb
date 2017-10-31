@@ -1,8 +1,26 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, unicode_literals
 
 import inspect
+import sys
 import types
 
+
+pyver = sys.version_info[0]
+
+if pyver == 2:
+    FUNC_CLOSURE_ATTR = 'func_closure'
+    FUNC_CODE_ATTR = 'func_code'
+    FUNC_DEFAULTS_ATTR = 'func_defaults'
+    FUNC_GLOBALS_ATTR = 'func_globals'
+    FUNC_NAME_ATTR = 'func_name'
+    METHOD_SELF_ATTR = 'im_self'
+else:
+    FUNC_CLOSURE_ATTR = '__closure__'
+    FUNC_CODE_ATTR = '__code__'
+    FUNC_DEFAULTS_ATTR = '__defaults__'
+    FUNC_GLOBALS_ATTR = '__globals__'
+    FUNC_NAME_ATTR = '__name__'
+    METHOD_SELF_ATTR = '__self__'
 
 _UNSET_ARG = object()
 
@@ -37,11 +55,12 @@ class FunctionSpy(object):
 
     def __init__(self, agency, func, call_fake=None, call_original=True):
         assert callable(func)
-        assert hasattr(func, 'func_name')
-        assert hasattr(func, 'im_self') or hasattr(func, 'func_globals')
+        assert hasattr(func, FUNC_NAME_ATTR)
+        assert (hasattr(func, METHOD_SELF_ATTR) or
+                hasattr(func, FUNC_GLOBALS_ATTR))
 
         self.agency = agency
-        self.func_name = func.func_name
+        self.func_name = getattr(func, FUNC_NAME_ATTR)
         self.orig_func = func
         self.calls = []
         self.owner = None
@@ -56,12 +75,18 @@ class FunctionSpy(object):
         else:
             self.func = None
 
-        if hasattr(func, 'im_self'):
-            if func.im_self is not None:
+        if hasattr(func, METHOD_SELF_ATTR):
+            method_self = getattr(func, METHOD_SELF_ATTR)
+
+            if method_self is not None:
                 # This is a bound function on an instance of a class.
-                self.owner = func.im_self
+                self.owner = method_self
             else:
-                # This is an unbound function on a class.
+                # This is an unbound function on a class. These only exist
+                # in Python 2, so this code block will not be reached on 3
+                # (the forwarding call/bytecode swap will be done instead).
+                assert pyver == 2
+
                 self.owner = func.im_class
 
             setattr(self.owner, self.func_name, self)
@@ -76,16 +101,16 @@ class FunctionSpy(object):
             # function. That's easier said than done. We can't just replace
             # the __call__ method on it, like you would a class.
             #
-            # What we must do is replace the func_code backing it. This
-            # must be done carefully. The "co_freevars" and "co_cellvars"
-            # fields must remain the same between the old func_code and
-            # the new one. The actual bytecode and most of the rest of
-            # the fields can be taken from another function (the
-            # "forwarding_call" function defined inline below).
+            # What we must do is replace the code backing it. This must be
+            # done carefully. The "co_freevars" and "co_cellvars" fields must
+            # remain the same between the old code and the new one. The
+            # actual bytecode and most of the rest of the fields can be taken
+            # from another function (the "forwarding_call" function defined
+            # inline below).
             #
             # Unfortunately, we no longer have access to "self" (since we
             # replaced "co_freevars"). Instead, we store a global mapping
-            # of func_codes to spies.
+            # of codes to spies.
             #
             # We also must build the function dynamically, using exec().
             # The reason is that we want to accurately mimic the function
@@ -99,7 +124,8 @@ class FunctionSpy(object):
             # determining which keyword arguments were provided and which
             # were not. Anything attempting to inspect this function with
             # getargspec will get the defaults from the original function,
-            # by way of the original func.func_defaults attribute.
+            # by way of the original func.func_defaults attribute (on Python 2)
+            # or __defaults__ (on Python 3).
             #
             # This forwarding function then needs to call the forwarded
             # function in exactly the same manner as it was called. That is,
@@ -132,9 +158,7 @@ class FunctionSpy(object):
             # though.
             self._argspec = inspect.getargspec(func)
 
-            # This is just to avoid a PyFlakes warning, since it doesn't know
-            # about what's going on in that exec().
-            forwarding_call = None
+            exec_locals = {}
 
             exec(
                 'def forwarding_call(%(params)s):\n'
@@ -143,37 +167,52 @@ class FunctionSpy(object):
                 ''
                 '    _kgb_frame = _kgb_curframe()\n'
                 '    _kgb_spy = _kgb_cls._code_maps[_kgb_frame.f_code]\n'
+                '    _kgb_locals = locals()\n'
                 ''
-                '    exec("_kgb_result = _kgb_spy(%%s)"\n'
-                '         %% _kgb_spy._format_call_args(_kgb_frame))\n'
-                '    return _kgb_result'
+                '    exec("result = _kgb_spy(%%s)"\n'
+                '         %% _kgb_spy._format_call_args(_kgb_frame),\n'
+                '         {}, _kgb_locals)\n'
+                '    return _kgb_locals["result"]\n'
                 % {
                     'params': inspect.formatargspec(
                         formatvalue=lambda value: '=_UNSET_ARG',
                         *self._argspec)[1:-1],
-                }
-            )
+                },
+                globals(), exec_locals)
 
-            self._old_code = func.func_code
-            temp_code = forwarding_call.func_code
-            new_code = types.CodeType(temp_code.co_argcount,
-                                      temp_code.co_nlocals,
-                                      temp_code.co_stacksize,
-                                      temp_code.co_flags,
-                                      temp_code.co_code,
-                                      temp_code.co_consts,
-                                      temp_code.co_names,
-                                      temp_code.co_varnames,
-                                      temp_code.co_filename,
-                                      self._old_code.co_name,
-                                      temp_code.co_firstlineno,
-                                      temp_code.co_lnotab,
-                                      self._old_code.co_freevars,
-                                      self._old_code.co_cellvars)
+            forwarding_call = exec_locals['forwarding_call']
+
+            assert forwarding_call is not None
+
+            self._old_code = getattr(func, FUNC_CODE_ATTR)
+            temp_code = getattr(forwarding_call, FUNC_CODE_ATTR)
+
+            code_args = [temp_code.co_argcount]
+
+            if pyver >= 3:
+                code_args.append(temp_code.co_kwonlyargcount)
+
+            code_args += [
+                temp_code.co_nlocals,
+                temp_code.co_stacksize,
+                temp_code.co_flags,
+                temp_code.co_code,
+                temp_code.co_consts,
+                temp_code.co_names,
+                temp_code.co_varnames,
+                temp_code.co_filename,
+                self._old_code.co_name,
+                temp_code.co_firstlineno,
+                temp_code.co_lnotab,
+                self._old_code.co_freevars,
+                self._old_code.co_cellvars,
+            ]
+
+            new_code = types.CodeType(*code_args)
             FunctionSpy._code_maps[new_code] = self
 
             func.spy = self
-            func.func_code = new_code
+            setattr(func, FUNC_CODE_ATTR, new_code)
             assert self._old_code != new_code
 
             if self.func is self.orig_func:
@@ -181,11 +220,12 @@ class FunctionSpy(object):
                 # to replace what we're calling with something that acts
                 # like the original function. Otherwise, we'll just call
                 # the forwarding_call above in an infinite loop.
-                self.func = types.FunctionType(self._old_code,
-                                               self.func.func_globals,
-                                               self.func.func_name,
-                                               self.func.func_defaults,
-                                               self.func.func_closure)
+                self.func = types.FunctionType(
+                    self._old_code,
+                    getattr(self.func, FUNC_GLOBALS_ATTR),
+                    getattr(self.func, FUNC_NAME_ATTR),
+                    getattr(self.func, FUNC_DEFAULTS_ATTR),
+                    getattr(self.func, FUNC_CLOSURE_ATTR))
 
     @property
     def __class__(self):
@@ -232,13 +272,13 @@ class FunctionSpy(object):
         list of spies. This can be disabled by passing unregister=False,
         but don't do that. That's for internal use.
         """
-        if hasattr(self.orig_func, 'im_self'):
+        if hasattr(self.orig_func, METHOD_SELF_ATTR):
             setattr(self.owner, self.func_name, self.orig_func)
         else:
             assert hasattr(self.orig_func, 'spy')
-            del FunctionSpy._code_maps[self.orig_func.func_code]
+            del FunctionSpy._code_maps[getattr(self.orig_func, FUNC_CODE_ATTR)]
             del self.orig_func.spy
-            self.orig_func.func_code = self._old_code
+            setattr(self.orig_func, FUNC_CODE_ATTR, self._old_code)
 
         if unregister:
             self.agency.spies.remove(self)
@@ -277,7 +317,7 @@ class FunctionSpy(object):
         if self.func is None:
             return None
         elif (self.func is not self.orig_func and
-              hasattr(self.orig_func, 'im_self')):
+              hasattr(self.orig_func, METHOD_SELF_ATTR)):
             return self.func.__call__(self.owner, *args, **kwargs)
         else:
             return self.func(*args, **kwargs)
@@ -287,7 +327,7 @@ class FunctionSpy(object):
 
         Any attributes being fetched that aren't part of the spy will be
         fetched from the function itself. This includes variables like
-        ``im_self`` and ``func_code``.
+        ``im_self``/``__self__`` and ``func_code``/``__code__``.
 
         This only supports instance methods, since standard functions are
         still functions and won't go through a spy for attribute lookups.
@@ -313,7 +353,7 @@ class FunctionSpy(object):
         return getattr(self.orig_func, name)
 
     def __repr__(self):
-        if hasattr(self.orig_func, 'im_self'):
+        if hasattr(self.orig_func, METHOD_SELF_ATTR):
             if hasattr(self.owner, '__name__'):
                 class_name = self.owner.__name__
                 method_type = 'classmethod'
@@ -342,7 +382,14 @@ class FunctionSpy(object):
             int:
             The number of positional arguments.
         """
-        return ord(caller_frame.f_code.co_code[caller_frame.f_lasti + 1])
+        num_args = caller_frame.f_code.co_code[caller_frame.f_lasti + 1]
+
+        if pyver == 2:
+            # In Python 2, this is represented as a character instead of an
+            # integer.
+            num_args = ord(num_args)
+
+        return num_args
 
     def _format_call_args(self, frame):
         """Format arguments to pass in for forwarding a call.

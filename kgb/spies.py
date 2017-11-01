@@ -156,7 +156,7 @@ class FunctionSpy(object):
             # It's a wonderful bag of tricks that are fully legal, but really
             # dirty. Somehow, it all really fits in with the idea of spies,
             # though.
-            self._argspec = inspect.getargspec(func)
+            self._argspec = self._get_arg_spec(func)
 
             exec_locals = {}
 
@@ -174,9 +174,7 @@ class FunctionSpy(object):
                 '         {}, _kgb_locals)\n'
                 '    return _kgb_locals["result"]\n'
                 % {
-                    'params': inspect.formatargspec(
-                        formatvalue=lambda value: '=_UNSET_ARG',
-                        *self._argspec)[1:-1],
+                    'params': self._format_arg_spec(),
                 },
                 globals(), exec_locals)
 
@@ -412,19 +410,92 @@ class FunctionSpy(object):
         """
         num_pos_args = self._get_caller_pos_arg_counts(frame.f_back)
         argspec = self._argspec
-        func_args = argspec.args
+        func_args = argspec['args']
         f_locals = frame.f_locals
+
+        keyword_args = func_args[num_pos_args:]
+
+        if pyver >= 3:
+            keyword_args += argspec['kwonly_args']
 
         result = func_args[:num_pos_args] + [
             '%s=%s' % (arg_name, arg_name)
-            for arg_name in func_args[num_pos_args:]
+            for arg_name in keyword_args
             if f_locals[arg_name] is not _UNSET_ARG
         ]
 
-        if argspec.varargs:
-            result.append('*%s' % argspec.varargs)
+        if argspec['args_name']:
+            result.append('*%s' % argspec['args_name'])
 
-        if argspec.keywords:
-            result.append('**%s' % argspec.keywords)
+        if argspec['kwargs_name']:
+            result.append('**%s' % argspec['kwargs_name'])
 
         return ', '.join(result)
+
+    def _get_arg_spec(self, func):
+        """Return the argument specification for a function.
+
+        This will return some information on a function, depending on whether
+        we're running on Python 2 or 3. The information consists of the list of
+        arguments the function takes, the name of the ``*args`` and
+        ``**kwargs`` arguments, and any default values for keyword arguments.
+        If running on Python 3, the list of keyword-only arguments are also
+        returned.
+
+        Args:
+            func (callable):
+                The function to introspect.
+
+        Returns:
+            dict:
+            A dictionary of information on the function.
+        """
+        if pyver == 2:
+            argspec = inspect.getargspec(func)
+
+            return {
+                'args': argspec.args,
+                'args_name': argspec.varargs,
+                'kwargs_name': argspec.keywords,
+                'defaults': argspec.defaults,
+            }
+        else:
+            argspec = inspect.getfullargspec(func)
+
+            return {
+                'args': argspec.args,
+                'args_name': argspec.varargs,
+                'kwargs_name': argspec.varkw,
+                'defaults': argspec.defaults,
+                'kwonly_args': argspec.kwonlyargs,
+                'kwonly_defaults': argspec.kwonlydefaults,
+            }
+
+    def _format_arg_spec(self):
+        """Format the spied function's arguments for a new function definition.
+
+        This will build a list of parameters for a function definition based on
+        the argument specification found when introspecting a spied function.
+        This consists of positional arguments, keyword arguments, and
+        keyword-only arguments.
+
+        Returns:
+            unicode:
+            A string representing an argument list for a function definition.
+        """
+        argspec = self._argspec
+        kwargs = {
+            'args': argspec['args'],
+            'varargs': argspec['args_name'],
+            'varkw': argspec['kwargs_name'],
+            'defaults': argspec['defaults'],
+            'formatvalue': lambda value: '=_UNSET_ARG',
+        }
+
+        if pyver >= 3:
+            kwargs.update({
+                'kwonlyargs': argspec['kwonly_args'],
+                'kwonlydefaults': argspec['kwonly_defaults'],
+            })
+
+        return inspect.formatargspec(**kwargs)[1:-1]

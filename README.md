@@ -36,13 +36,13 @@ Installing kgb
 
 Before you can use kgb, you need to install it. You can do this by typing:
 
-    $ easy_install kgb
+    $ pip install kgb
 
 or:
 
-    $ pip install kgb
+    $ easy_install kgb
 
-kgb supports Python 2.5 through 2.7.
+kgb supports Python 2.5 through 2.7 and 3.4 through 3.5.
 
 
 Spying for fun and profit

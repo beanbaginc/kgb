@@ -62,7 +62,17 @@ class SpyCall(object):
             ``True`` if the call's arguments match the provided arguments.
             ``False`` if they do not.
         """
-        return self.args == args and self.kwargs == kwargs
+        if len(args) > len(self.args):
+            return False
+
+        if self.args[:len(args)] != args:
+            return False
+
+        for key, value in six.iteritems(kwargs):
+            if key not in self.kwargs or self.kwargs[key] != value:
+                return False
+
+        return True
 
     def returned(self, value):
         """Return whether this call returned the given value.

@@ -240,8 +240,9 @@ self.assertTrue(obj.function.calls[0].called_with('foo', bar='baz'))
 self.assertTrue(obj.function.last_called_with('foo', bar='baz'))
 ```
 
-The whole call history will be searched. The arguments provided must match
-the call exactly. No mixing of args and kwargs.
+The whole call history will be searched. You can provide the entirety of the
+arguments passed to the function, or you can provide a subset. However, you
+can't mix-and-match between positional and keyword arguments made in the call.
 
 
 ### Check if the function ever returned a certain value

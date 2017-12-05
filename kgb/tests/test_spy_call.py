@@ -30,6 +30,34 @@ class SpyCallTests(TestCase):
         self.assertTrue(call.called_with(a=1, b=2))
         self.assertFalse(call.called_with(a=3, b=4))
 
+    def test_called_with_and_partial_args(self):
+        """Testing SpyCall.called_with and partial arguments"""
+        obj = MathClass()
+        self.agency.spy_on(obj.do_math)
+
+        obj.do_math(1, 2)
+        obj.do_math(3, 4)
+
+        call = obj.do_math.calls[0]
+        self.assertTrue(call.called_with(1))
+        self.assertFalse(call.called_with(1, 2, 3))
+        self.assertFalse(call.called_with(3))
+
+    def test_called_with_and_partial_kwargs(self):
+        """Testing SpyCall.called_with and partial keyword arguments"""
+        obj = MathClass()
+        self.agency.spy_on(obj.do_math)
+
+        obj.do_math(a=1, b=2)
+        obj.do_math(a=3, b=4)
+
+        call = obj.do_math.calls[0]
+        self.assertTrue(call.called_with(a=1))
+        self.assertTrue(call.called_with(b=2))
+        self.assertFalse(call.called_with(a=4))
+        self.assertFalse(call.called_with(a=1, b=2, c=3))
+        self.assertFalse(call.called_with(a=3, b=2))
+
     def test_returned(self):
         """Testing SpyCall.returned"""
         obj = MathClass()

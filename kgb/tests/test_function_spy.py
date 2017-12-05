@@ -473,6 +473,36 @@ class FunctionSpyTests(TestCase):
         self.assertTrue(obj.do_math.called_with(a=3, b=4))
         self.assertFalse(obj.do_math.called_with(a=5, b=6))
 
+    def test_called_with_and_partial_args(self):
+        """Testing FunctionSpy.called_with and partial arguments"""
+        obj = MathClass()
+        self.agency.spy_on(obj.do_math)
+
+        obj.do_math(1, 2)
+        obj.do_math(3, 4)
+
+        self.assertTrue(obj.do_math.called_with(1))
+        self.assertTrue(obj.do_math.called_with(3))
+        self.assertFalse(obj.do_math.called_with(4))
+        self.assertFalse(obj.do_math.called_with(1, 2, 3))
+
+    def test_called_with_and_partial_kwargs(self):
+        """Testing FunctionSpy.called_with and partial keyword arguments"""
+        obj = MathClass()
+        self.agency.spy_on(obj.do_math)
+
+        obj.do_math(a=1, b=2)
+        obj.do_math(a=3, b=4)
+
+        self.assertTrue(obj.do_math.called_with(a=1))
+        self.assertTrue(obj.do_math.called_with(b=2))
+        self.assertTrue(obj.do_math.called_with(a=3))
+        self.assertTrue(obj.do_math.called_with(b=4))
+        self.assertFalse(obj.do_math.called_with(a=4))
+        self.assertFalse(obj.do_math.called_with(a=1, b=2, c=3))
+        self.assertFalse(obj.do_math.called_with(a=1, b=4))
+        self.assertFalse(obj.do_math.called_with(a=3, b=2))
+
     def test_last_called_with(self):
         """Testing FunctionSpy.last_called_with"""
         obj = MathClass()
@@ -495,6 +525,34 @@ class FunctionSpyTests(TestCase):
         self.assertTrue(obj.do_math.last_called_with(a=3, b=4))
         self.assertFalse(obj.do_math.last_called_with(a=1, b=2))
         self.assertFalse(obj.do_math.last_called_with(a=1, b=2, c=3))
+
+    def test_last_called_with_and_partial_args(self):
+        """Testing FunctionSpy.called_with and partial arguments"""
+        obj = MathClass()
+        self.agency.spy_on(obj.do_math)
+
+        obj.do_math(1, 2)
+        obj.do_math(3, 4)
+
+        self.assertTrue(obj.do_math.last_called_with(3))
+        self.assertTrue(obj.do_math.last_called_with(3, 4))
+        self.assertFalse(obj.do_math.last_called_with(3, 4, 5))
+        self.assertFalse(obj.do_math.last_called_with(1, 2))
+
+    def test_last_called_with_and_partial_kwargs(self):
+        """Testing FunctionSpy.called_with and partial keyword arguments"""
+        obj = MathClass()
+        self.agency.spy_on(obj.do_math)
+
+        obj.do_math(a=1, b=2)
+        obj.do_math(a=3, b=4)
+
+        self.assertFalse(obj.do_math.last_called_with(a=1))
+        self.assertFalse(obj.do_math.last_called_with(b=2))
+        self.assertFalse(obj.do_math.last_called_with(a=1, b=2, c=3))
+        self.assertFalse(obj.do_math.last_called_with(a=1, c=3))
+        self.assertTrue(obj.do_math.last_called_with(a=3))
+        self.assertTrue(obj.do_math.last_called_with(b=4))
 
     def test_returned(self):
         """Testing FunctionSpy.returned"""

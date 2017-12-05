@@ -191,10 +191,20 @@ See how many times your spy's intercepted a function call, and what was passed.
 # For bound methods...
 print obj.function.last_call.args
 print obj.function.last_call.kwargs
+print obj.function.last_call.return_value
+print obj.function.last_call.exception
 
 # For standard functions...
 print function.spy.last_call.args
 print function.spy.last_call.kwargs
+print function.spy.last_call.return_value
+print function.spy.last_call.exception
+
+# For individual calls...
+print obj.function.calls[0].args
+print obj.function.calls[0].kwargs
+print obj.function.calls[0].return_value
+print obj.function.calls[0].exception
 ```
 
 Also a good way of knowing whether it's even been called. `last_call` will be
@@ -222,23 +232,77 @@ self.assertTrue(obj.function.called_with('foo', bar='baz'))
 
 # For standard functions...
 self.assertTrue(function.spy.called_with('foo', bar='baz'))
+
+# For individual calls...
+self.assertTrue(obj.function.calls[0].called_with('foo', bar='baz'))
+
+# For the last call...
+self.assertTrue(obj.function.last_called_with('foo', bar='baz'))
 ```
 
 The whole call history will be searched. The arguments provided must match
 the call exactly. No mixing of args and kwargs.
 
 
-### Check if the last call had certain arguments
+### Check if the function ever returned a certain value
 
 ```python
 # For bound methods...
-self.assertTrue(obj.function.last_called_with('foo', bar='baz'))
+self.assertTrue(obj.function.returned(42))
 
 # For standard functions...
-self.assertTrue(function.spy.last_called_with('foo', bar='baz'))
+self.assertTrue(function.spy.returned(42))
+
+# For individual calls...
+self.assertTrue(obj.function.calls[0].returned(42))
+
+# For the last call...
+self.assertTrue(obj.function.last_returned(42))
 ```
 
-Just like `called_with`, but only the most recent call be checked.
+Handy for checking if some function ever returned what you expected it to, when
+you're not calling that function yourself.
+
+
+### Check if a function ever raised a certain type of exception
+
+```python
+# For bound methods...
+self.assertTrue(obj.function.raised(TypeError))
+
+# For standard functions...
+self.assertTrue(function.spy.raised(TypeError))
+
+# For individual calls...
+self.assertTrue(obj.function.calls[0].raised(TypeError))
+
+# For the last call...
+self.assertTrue(obj.function.last_raised(TypeError))
+```
+
+You can also go a step further by checking the exception's message.
+
+```python
+# For bound methods...
+self.assertTrue(obj.function.raised_with_message(
+    TypeError,
+    "'type' object is not iterable"))
+
+# For standard functions...
+self.assertTrue(function.spy.raised_with_message(
+    TypeError,
+    "'type' object is not iterable"))
+
+# For individual calls...
+self.assertTrue(obj.function.calls[0].raised_with_message(
+    TypeError,
+    "'type' object is not iterable"))
+
+# For the last call...
+self.assertTrue(obj.function.last_raised_with_message(
+    TypeError,
+    "'type' object is not iterable"))
+```
 
 
 ### Reset all the calls

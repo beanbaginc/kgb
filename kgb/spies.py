@@ -4,6 +4,8 @@ import inspect
 import sys
 import types
 
+import six
+
 
 pyver = sys.version_info[0]
 
@@ -31,9 +33,84 @@ class SpyCall(object):
     SpyCalls are created and stored by a FunctionSpy every time it is
     called. They're accessible through the FunctionSpy's ``calls`` attribute.
     """
+
     def __init__(self, args, kwargs):
         self.args = args
         self.kwargs = kwargs
+        self.return_value = None
+        self.exception = None
+
+    def called_with(self, *args, **kwargs):
+        """Return whether this call was made with the given arguments.
+
+        Not every argument and keyword argument made in the call must be
+        provided to this method. These can be a subset of the positional and
+        keyword arguments in the call, but cannot contain any arguments not
+        made in the call.
+
+        Args:
+            *args (tuple):
+                The positional arguments made in the call, or a subset of
+                those arguments (starting with the first argument).
+
+            **kwargs (dict):
+                The keyword arguments made in the call, or a subset of those
+                arguments.
+
+        Returns:
+            bool:
+            ``True`` if the call's arguments match the provided arguments.
+            ``False`` if they do not.
+        """
+        return self.args == args and self.kwargs == kwargs
+
+    def returned(self, value):
+        """Return whether this call returned the given value.
+
+        Args:
+            value (object):
+                The expected returned value from the call.
+
+        Returns:
+            bool:
+            ``True`` if this call returned the given value. ``False`` if it
+            did not.
+        """
+        return self.return_value == value
+
+    def raised(self, exception_cls):
+        """Return whether this call raised this exception.
+
+        Args:
+            exception_cls (type):
+                The expected type of exception raised by the call.
+
+        Returns:
+            bool:
+            ``True`` if this call raised the given exception type.
+            ``False`` if it did not.
+        """
+        return ((self.exception is None and exception_cls is None) or
+                type(self.exception) is exception_cls)
+
+    def raised_with_message(self, exception_cls, message):
+        """Return whether this call raised this exception and message.
+
+        Args:
+            exception_cls (type):
+                The expected type of exception raised by the call.
+
+            message (unicode):
+                The expected message from the exception.
+
+        Returns:
+            bool:
+            ``True`` if this call raised the given exception type and message.
+            ``False`` if it did not.
+        """
+        return (self.exception is not None and
+                self.raised(exception_cls) and
+                six.text_type(self.exception) == message)
 
 
 class FunctionSpy(object):
@@ -282,21 +359,179 @@ class FunctionSpy(object):
             self.agency.spies.remove(self)
 
     def called_with(self, *args, **kwargs):
-        """Returns whether the spy was ever called with the given arguments."""
-        for call in self.calls:
-            if call.args == args and call.kwargs == kwargs:
-                return True
+        """Return whether the spy was ever called with the given arguments.
 
-        return False
+        This will check each and every recorded call to see if the arguments
+        and keyword arguments match up. If at least one call does match, this
+        will return ``True``.
+
+        Not every argument and keyword argument made in the call must be
+        provided to this method. These can be a subset of the positional and
+        keyword arguments in the call, but cannot contain any arguments not
+        made in the call.
+
+        Args:
+            *args (tuple):
+                The positional arguments made in the call, or a subset of
+                those arguments (starting with the first argument).
+
+            **kwargs (dict):
+                The keyword arguments made in the call, or a subset of those
+                arguments.
+
+        Returns:
+            bool:
+            ``True`` if there's at least one call matching these arguments.
+            ``False`` if no call matches.
+        """
+        return any(
+            call.called_with(*args, **kwargs)
+            for call in self.calls
+        )
 
     def last_called_with(self, *args, **kwargs):
-        """Returns whether the spy was last called with the given arguments."""
+        """Return whether the spy was last called with the given arguments.
+
+        Not every argument and keyword argument made in the call must be
+        provided to this method. These can be a subset of the positional and
+        keyword arguments in the call, but cannot contain any arguments not
+        made in the call.
+
+        Args:
+            *args (tuple):
+                The positional arguments made in the call, or a subset of
+                those arguments (starting with the first argument).
+
+            **kwargs (dict):
+                The keyword arguments made in the call, or a subset of those
+                arguments.
+
+        Returns:
+            bool:
+            ``True`` if the last call's arguments match the provided arguments.
+            ``False`` if they do not.
+        """
         call = self.last_call
 
-        if call and call.args == args and call.kwargs == kwargs:
-            return True
+        return call is not None and call.called_with(*args, **kwargs)
 
-        return False
+    def returned(self, value):
+        """Return whether the spy was ever called and returned the given value.
+
+        This will check each and every recorded call to see if any of them
+        returned the given value.  If at least one call did, this will return
+        ``True``.
+
+        Args:
+            value (object):
+                The expected returned value from the call.
+
+        Returns:
+            bool:
+            ``True`` if there's at least one call that returned this value.
+            ``False`` if no call returned the value.
+        """
+        return any(
+            call.returned(value)
+            for call in self.calls
+        )
+
+    def last_returned(self, value):
+        """Return whether the spy's last call returned the given value.
+
+        Args:
+            value (object):
+                The expected returned value from the call.
+
+        Returns:
+            bool:
+            ``True`` if the last call returned this value. ``False`` if it
+            did not.
+        """
+        call = self.last_call
+
+        return call is not None and call.returned(value)
+
+    def raised(self, exception_cls):
+        """Return whether the spy was ever called and raised this exception.
+
+        This will check each and every recorded call to see if any of them
+        raised an exception of a given type. If at least one call does match,
+        this will return ``True``.
+
+        Args:
+            exception_cls (type):
+                The expected type of exception raised by a call.
+
+        Returns:
+            bool:
+            ``True`` if there's at least one call raising the given exception
+            type. ``False`` if no call matches.
+        """
+        return any(
+            call.raised(exception_cls)
+            for call in self.calls
+        )
+
+    def last_raised(self, exception_cls):
+        """Return whether the spy's last call raised this exception.
+
+        Args:
+            exception_cls (type):
+                The expected type of exception raised by a call.
+
+        Returns:
+            bool:
+            ``True`` if the last call raised the given exception type.
+            ``False`` if it did not.
+        """
+        call = self.last_call
+
+        return call is not None and call.raised(exception_cls)
+
+    def raised_with_message(self, exception_cls, message):
+        """Return whether the spy's calls ever raised this exception/message.
+
+        This will check each and every recorded call to see if any of them
+        raised an exception of a given type with the given message. If at least
+        one call does match, this will return ``True``.
+
+        Args:
+            exception_cls (type):
+                The expected type of exception raised by a call.
+
+            message (unicode):
+                The expected message from the exception.
+
+        Returns:
+            bool:
+            ``True`` if there's at least one call raising the given exception
+            type and message. ``False`` if no call matches.
+        """
+        return any(
+            call.raised_with_message(exception_cls, message)
+            for call in self.calls
+        )
+
+    def last_raised_with_message(self, exception_cls, message):
+        """Return whether the spy's last call raised this exception/message.
+
+        Args:
+            exception_cls (type):
+                The expected type of exception raised by a call.
+
+            message (unicode):
+                The expected message from the exception.
+
+        Returns:
+            bool:
+            ``True`` if the last call raised the given exception type and
+            message. ``False`` if it did not.
+        """
+        call = self.last_call
+
+        return (call is not None and
+                call.raised_with_message(exception_cls, message))
 
     def reset_calls(self):
         """Resets the list of calls recorded by this spy."""
@@ -310,15 +545,28 @@ class FunctionSpy(object):
         If the spy was set to call the original function or a fake function,
         the function will be called.
         """
-        self.calls.append(SpyCall(args, kwargs))
+        call = SpyCall(args, kwargs)
+        self.calls.append(call)
 
         if self.func is None:
-            return None
+            result = None
         elif (self.func is not self.orig_func and
               hasattr(self.orig_func, METHOD_SELF_ATTR)):
-            return self.func.__call__(self.owner, *args, **kwargs)
+            try:
+                result = self.func.__call__(self.owner, *args, **kwargs)
+            except Exception as e:
+                call.exception = e
+                raise
         else:
-            return self.func(*args, **kwargs)
+            try:
+                result = self.func(*args, **kwargs)
+            except Exception as e:
+                call.exception = e
+                raise
+
+        call.return_value = result
+
+        return result
 
     def __getattr__(self, name):
         """Return an attribute from the function.

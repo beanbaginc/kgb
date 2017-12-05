@@ -461,6 +461,18 @@ class FunctionSpyTests(TestCase):
         self.assertTrue(obj.do_math.called_with(3, 4))
         self.assertFalse(obj.do_math.called_with(5, 6))
 
+    def test_called_with_and_keyword_args(self):
+        """Testing FunctionSpy.called_with and keyword arguments"""
+        obj = MathClass()
+        self.agency.spy_on(obj.do_math)
+
+        obj.do_math(a=1, b=2)
+        obj.do_math(a=3, b=4)
+
+        self.assertTrue(obj.do_math.called_with(a=1, b=2))
+        self.assertTrue(obj.do_math.called_with(a=3, b=4))
+        self.assertFalse(obj.do_math.called_with(a=5, b=6))
+
     def test_last_called_with(self):
         """Testing FunctionSpy.last_called_with"""
         obj = MathClass()
@@ -471,6 +483,100 @@ class FunctionSpyTests(TestCase):
 
         self.assertFalse(obj.do_math.last_called_with(1, 2))
         self.assertTrue(obj.do_math.last_called_with(3, 4))
+
+    def test_last_called_with_and_keyword_args(self):
+        """Testing FunctionSpy.last_called_with and keyword arguments"""
+        obj = MathClass()
+        self.agency.spy_on(obj.do_math)
+
+        obj.do_math(a=1, b=2)
+        obj.do_math(a=3, b=4)
+
+        self.assertTrue(obj.do_math.last_called_with(a=3, b=4))
+        self.assertFalse(obj.do_math.last_called_with(a=1, b=2))
+        self.assertFalse(obj.do_math.last_called_with(a=1, b=2, c=3))
+
+    def test_returned(self):
+        """Testing FunctionSpy.returned"""
+        obj = MathClass()
+        self.agency.spy_on(obj.do_math)
+
+        obj.do_math(1, 2)
+        obj.do_math(3, 4)
+
+        self.assertTrue(obj.do_math.returned(3))
+        self.assertTrue(obj.do_math.returned(7))
+        self.assertFalse(obj.do_math.returned(10))
+        self.assertFalse(obj.do_math.returned(None))
+
+    def test_last_returned(self):
+        """Testing FunctionSpy.last_returned"""
+        obj = MathClass()
+        self.agency.spy_on(obj.do_math)
+
+        obj.do_math(1, 2)
+        obj.do_math(3, 4)
+
+        self.assertFalse(obj.do_math.last_returned(3))
+        self.assertTrue(obj.do_math.last_returned(7))
+        self.assertFalse(obj.do_math.last_returned(None))
+
+    def test_raised(self):
+        """Testing FunctionSpy.raised"""
+        obj = MathClass()
+        self.agency.spy_on(obj.do_math)
+
+        with self.assertRaises(TypeError):
+            obj.do_math(1, 'a')
+
+        self.assertTrue(obj.do_math.raised(TypeError))
+        self.assertFalse(obj.do_math.raised(ValueError))
+        self.assertFalse(obj.do_math.raised(None))
+
+    def test_last_raised(self):
+        """Testing FunctionSpy.last_raised"""
+        obj = MathClass()
+        self.agency.spy_on(obj.do_math)
+
+        with self.assertRaises(TypeError):
+            obj.do_math(1, 'a')
+
+        self.assertTrue(obj.do_math.last_raised(TypeError))
+        self.assertFalse(obj.do_math.last_raised(None))
+
+        obj.do_math(1, 4)
+
+        self.assertFalse(obj.do_math.last_raised(TypeError))
+        self.assertTrue(obj.do_math.last_raised(None))
+
+    def test_raised_with_message(self):
+        """Testing FunctionSpy.raised_with_message"""
+        obj = MathClass()
+        self.agency.spy_on(obj.do_math)
+
+        with self.assertRaises(TypeError):
+            obj.do_math(1, 'a')
+
+        self.assertTrue(obj.do_math.raised_with_message(
+            TypeError,
+            "unsupported operand type(s) for +: 'int' and 'unicode'"))
+        self.assertFalse(obj.do_math.raised_with_message(
+            ValueError,
+            "unsupported operand type(s) for +: 'int' and 'unicode'"))
+        self.assertFalse(obj.do_math.raised_with_message(TypeError, None))
+
+    def test_last_raised_with_message(self):
+        """Testing FunctionSpy.last_raised_with_message"""
+        obj = MathClass()
+        self.agency.spy_on(obj.do_math)
+
+        with self.assertRaises(TypeError):
+            obj.do_math(1, 'a')
+
+        self.assertTrue(obj.do_math.last_raised_with_message(
+            TypeError,
+            "unsupported operand type(s) for +: 'int' and 'unicode'"))
+        self.assertFalse(obj.do_math.last_raised_with_message(TypeError, None))
 
     def test_reset_calls(self):
         """Testing FunctionSpy.reset_calls"""

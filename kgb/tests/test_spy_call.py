@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+from kgb.spies import text_type
 from kgb.tests.base import MathClass, TestCase
 
 
@@ -95,8 +96,10 @@ class SpyCallTests(TestCase):
         call = obj.do_math.calls[0]
         self.assertTrue(call.raised_with_message(
             TypeError,
-            "unsupported operand type(s) for +: 'int' and 'unicode'"))
+            "unsupported operand type(s) for +: 'int' and '%s'"
+            % text_type.__name__))
         self.assertFalse(call.raised_with_message(
             ValueError,
-            "unsupported operand type(s) for +: 'int' and 'unicode'"))
+            "unsupported operand type(s) for +: 'int' and '%s'"
+            % text_type.__name__))
         self.assertFalse(call.raised_with_message(TypeError, None))

@@ -4,8 +4,6 @@ import inspect
 import sys
 import types
 
-import six
-
 
 pyver = sys.version_info[0]
 
@@ -16,6 +14,11 @@ if pyver == 2:
     FUNC_GLOBALS_ATTR = 'func_globals'
     FUNC_NAME_ATTR = 'func_name'
     METHOD_SELF_ATTR = 'im_self'
+
+    text_type = unicode
+
+    def iteritems(d):
+        return d.iteritems()
 else:
     FUNC_CLOSURE_ATTR = '__closure__'
     FUNC_CODE_ATTR = '__code__'
@@ -23,6 +26,11 @@ else:
     FUNC_GLOBALS_ATTR = '__globals__'
     FUNC_NAME_ATTR = '__name__'
     METHOD_SELF_ATTR = '__self__'
+
+    text_type = str
+
+    def iteritems(d):
+        return iter(d.items())
 
 _UNSET_ARG = object()
 
@@ -68,7 +76,7 @@ class SpyCall(object):
         if self.args[:len(args)] != args:
             return False
 
-        for key, value in six.iteritems(kwargs):
+        for key, value in iteritems(kwargs):
             if key not in self.kwargs or self.kwargs[key] != value:
                 return False
 
@@ -120,7 +128,7 @@ class SpyCall(object):
         """
         return (self.exception is not None and
                 self.raised(exception_cls) and
-                six.text_type(self.exception) == message)
+                text_type(self.exception) == message)
 
 
 class FunctionSpy(object):

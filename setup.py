@@ -44,9 +44,6 @@ setup(name=PACKAGE_NAME,
       packages=find_packages(),
       maintainer='Christian Hammond',
       maintainer_email='christian@beanbaginc.com',
-      install_requires=[
-          'six',
-      ],
       classifiers=[
           'Development Status :: 5 - Production/Stable',
           'Environment :: Other Environment',

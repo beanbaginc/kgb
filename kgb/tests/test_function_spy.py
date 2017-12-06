@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import inspect
 import types
 
-from kgb.spies import FUNC_CODE_ATTR, FUNC_NAME_ATTR
+from kgb.spies import FUNC_CODE_ATTR, FUNC_NAME_ATTR, text_type
 from kgb.tests.base import MathClass, TestCase
 
 
@@ -617,10 +617,12 @@ class FunctionSpyTests(TestCase):
 
         self.assertTrue(obj.do_math.raised_with_message(
             TypeError,
-            "unsupported operand type(s) for +: 'int' and 'unicode'"))
+            "unsupported operand type(s) for +: 'int' and '%s'"
+            % text_type.__name__))
         self.assertFalse(obj.do_math.raised_with_message(
             ValueError,
-            "unsupported operand type(s) for +: 'int' and 'unicode'"))
+            "unsupported operand type(s) for +: 'int' and '%s'"
+            % text_type.__name__))
         self.assertFalse(obj.do_math.raised_with_message(TypeError, None))
 
     def test_last_raised_with_message(self):
@@ -633,7 +635,8 @@ class FunctionSpyTests(TestCase):
 
         self.assertTrue(obj.do_math.last_raised_with_message(
             TypeError,
-            "unsupported operand type(s) for +: 'int' and 'unicode'"))
+            "unsupported operand type(s) for +: 'int' and '%s'"
+            % text_type.__name__))
         self.assertFalse(obj.do_math.last_raised_with_message(TypeError, None))
 
     def test_reset_calls(self):

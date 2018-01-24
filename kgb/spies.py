@@ -51,7 +51,22 @@ class SpyCall(object):
     called. They're accessible through the FunctionSpy's ``calls`` attribute.
     """
 
-    def __init__(self, args, kwargs):
+    def __init__(self, spy, args, kwargs):
+        """Initialize the call.
+
+        Args:
+            spy (FunctionSpy):
+                The function spy that the call was made on.
+
+            args (tuple):
+                A tuple of positional arguments from the spy. These correspond
+                to positional arguments in the function's signature.
+
+            kwargs (dict):
+                A dictionary of keyword arguments from the spy. These
+                correspond to keyword arguments in the function's signature.
+        """
+        self.spy = spy
         self.args = args
         self.kwargs = kwargs
         self.return_value = None
@@ -85,8 +100,18 @@ class SpyCall(object):
         if self.args[:len(args)] != args:
             return False
 
+        argspec = self.spy.argspec
+        pos_args = argspec['args']
+
+        if self.spy.func_type in (FunctionSpy.TYPE_BOUND_METHOD,
+                                  FunctionSpy.TYPE_UNBOUND_METHOD):
+            pos_args = pos_args[1:]
+
+        all_args = dict(zip(pos_args, self.args))
+        all_args.update(self.kwargs)
+
         for key, value in iteritems(kwargs):
-            if key not in self.kwargs or self.kwargs[key] != value:
+            if key not in all_args or all_args[key] != value:
                 return False
 
         return True
@@ -739,7 +764,7 @@ class FunctionSpy(object):
                               self.TYPE_UNBOUND_METHOD):
             record_args = record_args[1:]
 
-        call = SpyCall(record_args, kwargs)
+        call = SpyCall(self, record_args, kwargs)
         self._real_func.calls.append(call)
         self._real_func.called = True
         self._real_func.last_call = call

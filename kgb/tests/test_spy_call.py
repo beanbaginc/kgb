@@ -17,8 +17,8 @@ class SpyCallTests(TestCase):
 
         call = obj.do_math_mixed.calls[0]
         self.assertTrue(call.called_with(1, b=2))
+        self.assertTrue(call.called_with(a=1, b=2))
         self.assertFalse(call.called_with(3, b=4))
-        self.assertFalse(call.called_with(a=1, b=2))
         self.assertFalse(call.called_with(1, 2))
 
     def test_called_with_and_keyword_args(self):
@@ -31,8 +31,8 @@ class SpyCallTests(TestCase):
 
         call = obj.do_math_mixed.calls[0]
         self.assertTrue(call.called_with(1, b=2))
+        self.assertTrue(call.called_with(a=1, b=2))
         self.assertFalse(call.called_with(1, 2))
-        self.assertFalse(call.called_with(a=1, b=2))
         self.assertFalse(call.called_with(3, b=4))
 
     def test_called_with_and_partial_args(self):
@@ -59,7 +59,7 @@ class SpyCallTests(TestCase):
         call = obj.do_math_mixed.calls[0]
         self.assertTrue(call.called_with(1))
         self.assertTrue(call.called_with(b=2))
-        self.assertFalse(call.called_with(a=1))
+        self.assertTrue(call.called_with(a=1))
         self.assertFalse(call.called_with(a=4))
         self.assertFalse(call.called_with(a=1, b=2, c=3))
         self.assertFalse(call.called_with(a=3, b=2))

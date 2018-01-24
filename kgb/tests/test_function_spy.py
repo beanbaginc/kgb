@@ -775,9 +775,9 @@ class FunctionSpyTests(TestCase):
 
         self.assertTrue(obj.do_math_mixed.called_with(1, b=2))
         self.assertTrue(obj.do_math_mixed.called_with(3, b=4))
-        self.assertFalse(obj.do_math_mixed.called_with(a=1, b=2))
+        self.assertTrue(obj.do_math_mixed.called_with(a=1, b=2))
+        self.assertTrue(obj.do_math_mixed.called_with(a=3, b=4))
         self.assertFalse(obj.do_math_mixed.called_with(1, 2))
-        self.assertFalse(obj.do_math_mixed.called_with(a=3, b=4))
         self.assertFalse(obj.do_math_mixed.called_with(3, 4))
         self.assertFalse(obj.do_math_mixed.called_with(5, b=6))
 
@@ -791,8 +791,8 @@ class FunctionSpyTests(TestCase):
 
         self.assertTrue(obj.do_math_mixed.called_with(1, b=2))
         self.assertTrue(obj.do_math_mixed.called_with(3, b=4))
-        self.assertFalse(obj.do_math_mixed.called_with(a=1, b=2))
-        self.assertFalse(obj.do_math_mixed.called_with(a=3, b=4))
+        self.assertTrue(obj.do_math_mixed.called_with(a=1, b=2))
+        self.assertTrue(obj.do_math_mixed.called_with(a=3, b=4))
         self.assertFalse(obj.do_math_mixed.called_with(5, b=6))
 
     def test_called_with_and_partial_args(self):
@@ -820,10 +820,10 @@ class FunctionSpyTests(TestCase):
         self.assertTrue(obj.do_math_mixed.called_with(b=2))
         self.assertTrue(obj.do_math_mixed.called_with(3))
         self.assertTrue(obj.do_math_mixed.called_with(b=4))
+        self.assertTrue(obj.do_math_mixed.called_with(a=1, b=2))
+        self.assertTrue(obj.do_math_mixed.called_with(a=3, b=4))
         self.assertFalse(obj.do_math_mixed.called_with(1, 2))
         self.assertFalse(obj.do_math_mixed.called_with(3, 4))
-        self.assertFalse(obj.do_math_mixed.called_with(a=1, b=2))
-        self.assertFalse(obj.do_math_mixed.called_with(a=3, b=4))
         self.assertFalse(obj.do_math_mixed.called_with(a=4))
         self.assertFalse(obj.do_math_mixed.called_with(a=1, b=2, c=3))
         self.assertFalse(obj.do_math_mixed.called_with(a=1, b=4))

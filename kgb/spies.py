@@ -5,6 +5,8 @@ import inspect
 import sys
 import types
 
+from kgb.errors import ExistingSpyError, IncompatibleFunctionError
+
 
 pyver = sys.version_info[:2]
 
@@ -187,12 +189,43 @@ class FunctionSpy(object):
     _spy_map = {}
 
     def __init__(self, agency, func, call_fake=None, call_original=True):
-        assert not hasattr(func, 'spy')
-        assert callable(func)
-        assert hasattr(func, FUNC_NAME_ATTR)
-        assert (hasattr(func, METHOD_SELF_ATTR) or
-                hasattr(func, FUNC_GLOBALS_ATTR))
+        """Initialize the spy.
 
+        This will begin spying on the provided function or method, injecting
+        new code into the function to help record how it was called and
+        what it returned, and adding methods and state onto the function
+        for callers to access in order to get those results.
+
+        Args:
+            agency (kgb.agency.SpyAgency):
+                The spy agency that manages this spy.
+
+            func (callable):
+                The function or method to spy on.
+
+            call_fake (callable, optional):
+                The optional function to call when this function is invoked.
+
+            call_original (bool, optional):
+                Whether to call the original function when the spy is
+                invoked. If ``False``, no function will be called.
+
+                This is ignored if ``call_fake`` is provided.
+        """
+        # Check the parameters passed to make sure that invalid data wasn't
+        # provided.
+        if hasattr(func, 'spy'):
+            raise ExistingSpyError(func)
+
+        if (not callable(func) or
+            not hasattr(func, FUNC_NAME_ATTR) or
+            not (hasattr(func, METHOD_SELF_ATTR) or
+                 hasattr(func, FUNC_GLOBALS_ATTR))):
+            raise ValueError('%r cannot be spied on. It does not appear to '
+                             'be a valid function or method.'
+                             % func)
+
+        self.init_frame = inspect.currentframe()
         self.agency = agency
         self.func_type = self.TYPE_FUNCTION
         self.func_name = getattr(func, FUNC_NAME_ATTR)
@@ -273,8 +306,24 @@ class FunctionSpy(object):
 
         self._real_func = real_func
 
+        self.argspec = self._get_arg_spec(func)
+
+        # If call_fake was provided, check that it's valid and has a
+        # compatible function signature.
+        if call_fake is not None:
+            if not callable(call_fake):
+                raise ValueError('%r cannot be used for call_fake. It does '
+                                 'not appear to be a valid function or method.'
+                                 % call_fake)
+
+            call_fake_argspec = self._get_arg_spec(call_fake)
+
+            if not self._are_argspecs_compatible(self.argspec,
+                                                 call_fake_argspec):
+                raise IncompatibleFunctionError(
+                    self, func, self.argspec, call_fake, call_fake_argspec)
+
         if call_fake:
-            assert callable(call_fake)
             self.func = call_fake
         elif call_original:
             self.func = self.orig_func
@@ -359,7 +408,6 @@ class FunctionSpy(object):
         # It's a wonderful bag of tricks that are fully legal, but really
         # dirty. Somehow, it all really fits in with the idea of spies,
         # though.
-        argspec = self._get_arg_spec(func)
         exec_locals = {}
 
         exec(
@@ -368,8 +416,8 @@ class FunctionSpy(object):
             ''
             '    return _kgb_cls._spy_map[%(spy_id)s](%(call_args)s)\n'
             % {
-                'params': self._format_arg_spec(argspec),
-                'call_args': self._format_call_args(argspec),
+                'params': self._format_arg_spec(self.argspec),
+                'call_args': self._format_call_args(self.argspec),
                 'spy_id': id(self),
             },
             globals(), exec_locals)
@@ -763,17 +811,9 @@ class FunctionSpy(object):
             A string representing the arguments to pass when forwarding a call.
         """
         # Build the list of positional and keyword arguments.
-        pos_args = argspec['args']
-        keyword_args = argspec.get('kwonly_args', [])
-
-        if pos_args and argspec['defaults']:
-            num_defaults = len(argspec['defaults'])
-            keyword_args = pos_args[-num_defaults:]
-            pos_args = pos_args[:-num_defaults]
-
-        result = pos_args + [
+        result = argspec['args'] + [
             '%s=%s' % (arg_name, arg_name)
-            for arg_name in keyword_args
+            for arg_name in argspec['kwargs']
         ]
 
         # Add the variable arguments.
@@ -809,23 +849,41 @@ class FunctionSpy(object):
         if pyver[0] == 2:
             argspec = inspect.getargspec(func)
 
-            return {
-                'args': argspec.args,
-                'args_name': argspec.varargs,
+            result = {
                 'kwargs_name': argspec.keywords,
-                'defaults': argspec.defaults,
             }
         else:
             argspec = inspect.getfullargspec(func)
 
-            return {
-                'args': argspec.args,
-                'args_name': argspec.varargs,
+            result = {
                 'kwargs_name': argspec.varkw,
-                'defaults': argspec.defaults,
                 'kwonly_args': argspec.kwonlyargs,
                 'kwonly_defaults': argspec.kwonlydefaults,
             }
+
+        all_args = argspec.args
+
+        result.update({
+            'all_args': all_args,
+            'defaults': argspec.defaults,
+            'args_name': argspec.varargs,
+        })
+
+        keyword_args = result.get('kwonly_args', [])
+
+        if all_args and argspec.defaults:
+            num_defaults = len(argspec.defaults)
+            keyword_args = all_args[-num_defaults:]
+            pos_args = all_args[:-num_defaults]
+        else:
+            pos_args = all_args
+
+        result.update({
+            'args': pos_args,
+            'kwargs': keyword_args,
+        })
+
+        return result
 
     def _format_arg_spec(self, argspec):
         """Format the spied function's arguments for a new function definition.
@@ -844,7 +902,7 @@ class FunctionSpy(object):
             A string representing an argument list for a function definition.
         """
         kwargs = {
-            'args': argspec['args'],
+            'args': argspec['all_args'],
             'varargs': argspec['args_name'],
             'varkw': argspec['kwargs_name'],
             'defaults': argspec['defaults'],
@@ -858,3 +916,65 @@ class FunctionSpy(object):
             })
 
         return inspect.formatargspec(**kwargs)[1:-1]
+
+    def _are_argspecs_compatible(self, master_argspec, compat_argspec):
+        """Return whether two argument specifications are compatible.
+
+        This will check if the argument specification for a function (the
+        ``call_fake`` passed in, technically) is compatible with another
+        (the spied function), to help ensure that unit tests with incompatible
+        function signatures don't blow up with strange errors later.
+
+        This will attempt to be somewhat flexible in what it considers
+        compatible. Basically, so long as all the arguments passed in to
+        the source function could be resolved using the argument list in the
+        other function (taking into account things like positional argument
+        names as keyword arguments), they're considered compatible.
+
+        Args:
+            master_argspec (dict):
+                The master argument specification that the other must be
+                compatible with.
+
+            compat_argspec (dict):
+                The argument specification to check for compatibility with
+                the master.
+
+        Returns:
+            bool:
+            ``True`` if ``compat_argspec`` is considered compatible with
+            ``master_argspec``. ``False`` if it is not.
+        """
+        source_args_name = master_argspec['args_name']
+        compat_args_name = compat_argspec['args_name']
+        source_kwargs_name = master_argspec['kwargs_name']
+        compat_kwargs_name = compat_argspec['kwargs_name']
+
+        if compat_args_name and compat_kwargs_name:
+            return True
+
+        if ((source_args_name and not compat_args_name) or
+            (source_kwargs_name and not compat_kwargs_name)):
+            return False
+
+        source_args = master_argspec['args']
+        compat_args = compat_argspec['args']
+        compat_all_args = set(compat_argspec['all_args'])
+        compat_kwargs = set(compat_argspec['kwargs'])
+
+        if self.func_type in (self.TYPE_BOUND_METHOD,
+                              self.TYPE_UNBOUND_METHOD):
+            source_args = source_args[1:]
+            compat_args = compat_args[1:]
+
+        if (len(source_args) != len(compat_args) and
+            ((len(source_args) < len(compat_args) and not source_args_name and
+              not compat_kwargs.issuperset(source_args)) or
+             (len(source_args) > len(compat_args) and not compat_args_name))):
+            return False
+
+        if (not compat_all_args.issuperset(master_argspec['kwargs']) and
+            not compat_kwargs_name):
+            return False
+
+        return True

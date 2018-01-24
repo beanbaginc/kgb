@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import inspect
 import types
 
+from kgb.errors import ExistingSpyError, IncompatibleFunctionError
 from kgb.spies import FUNC_CODE_ATTR, FUNC_NAME_ATTR, text_type
 from kgb.tests.base import MathClass, TestCase
 
@@ -92,7 +93,7 @@ class FunctionSpyTests(TestCase):
 
     def test_construction_with_call_fake_and_classmethod(self):
         """Testing FunctionSpy construction with call_fake and classmethod"""
-        def fake_class_do_math(cls):
+        def fake_class_do_math(cls, *args, **kwargs):
             return 42
 
         spy = self.agency.spy_on(MathClass.class_do_math,
@@ -180,6 +181,108 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(spy.func_name, 'foo')
         self.assertEqual(spy.func_type, spy.TYPE_BOUND_METHOD)
         self.assertIsInstance(my_object.foo, types.MethodType)
+
+    def test_construction_with_existing_spy(self):
+        """Testing FunctionSpy constructions with function already spied on"""
+        def setup_spy():
+            self.agency.spy_on(do_math)
+
+        setup_spy()
+
+        with self.assertRaises(ExistingSpyError) as cm:
+            self.agency.spy_on(do_math)
+
+        self.assertIn(', in setup_spy', text_type(cm.exception))
+
+    def test_construction_with_non_function(self):
+        """Testing FunctionSpy constructions with non-function"""
+        with self.assertRaises(ValueError) as cm:
+            self.agency.spy_on(42)
+
+        self.assertEqual(text_type(cm.exception),
+                         '42 cannot be spied on. It does not appear to be a '
+                         'valid function or method.')
+
+    def test_construction_with_call_fake_non_function(self):
+        """Testing FunctionSpy constructions with call_fake as non-function"""
+        with self.assertRaises(ValueError) as cm:
+            self.agency.spy_on(do_math, call_fake=True)
+
+        self.assertEqual(text_type(cm.exception),
+                         'True cannot be used for call_fake. It does not '
+                         'appear to be a valid function or method.')
+
+    def test_construction_with_call_fake_compatibility(self):
+        """Testing FunctionSpy constructions with call_fake with signature
+        compatibility
+        """
+        def source1(a, b):
+            pass
+
+        def source2(a, b, *args):
+            pass
+
+        def source3(c=1, d=2):
+            pass
+
+        def source4(c=1, d=2, **kwargs):
+            pass
+
+        with self.assertRaises(IncompatibleFunctionError):
+            self.agency.spy_on(
+                source1,
+                call_fake=lambda a, b, c: None)
+
+        with self.assertRaises(IncompatibleFunctionError):
+            self.agency.spy_on(
+                source1,
+                call_fake=lambda a: None)
+
+        with self.assertRaises(IncompatibleFunctionError):
+            self.agency.spy_on(
+                source1,
+                call_fake=lambda **kwargs: None)
+
+        with self.assertRaises(IncompatibleFunctionError):
+            self.agency.spy_on(
+                source2,
+                call_fake=lambda a, b: None)
+
+        with self.assertRaises(IncompatibleFunctionError):
+            self.agency.spy_on(
+                source3,
+                call_fake=lambda c=1: None)
+
+        with self.assertRaises(IncompatibleFunctionError):
+            self.agency.spy_on(
+                source4,
+                call_fake=lambda c=1, d=2, e=3: None)
+
+        with self.assertRaises(IncompatibleFunctionError):
+            self.agency.spy_on(
+                source4,
+                call_fake=lambda c=1, d=2: None)
+
+        self.agency.spy_on(source1, call_fake=lambda a, b: None)
+        source1.unspy()
+
+        self.agency.spy_on(source1, call_fake=lambda *args: None)
+        source1.unspy()
+
+        self.agency.spy_on(source4, call_fake=lambda c=1, d=2, **kwargs: None)
+        source4.unspy()
+
+        self.agency.spy_on(source4, call_fake=lambda c=1, **kwargs: None)
+        source4.unspy()
+
+        self.agency.spy_on(source4, call_fake=lambda c, d=None, **kwargs: None)
+        source4.unspy()
+
+        self.agency.spy_on(source4, call_fake=lambda c, e, **kwargs: None)
+        source4.unspy()
+
+        self.agency.spy_on(source4, call_fake=lambda **kwargs: None)
+        source4.unspy()
 
     def test_call_with_fake(self):
         """Testing FunctionSpy calls with call_fake"""

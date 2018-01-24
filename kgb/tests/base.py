@@ -1,7 +1,12 @@
 from __future__ import unicode_literals
 
 import re
-import unittest
+import sys
+
+if sys.version_info[:2] >= (2, 7):
+    import unittest
+else:
+    import unittest2 as unittest
 
 from kgb.agency import SpyAgency
 

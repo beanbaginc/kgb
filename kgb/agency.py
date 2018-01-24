@@ -15,7 +15,7 @@ class SpyAgency(object):
     def __init__(self, *args, **kwargs):
         super(SpyAgency, self).__init__(*args, **kwargs)
 
-        self.spies = []
+        self.spies = set()
 
     def tearDown(self):
         """Tears down a test suite.
@@ -41,15 +41,19 @@ class SpyAgency(object):
         The FunctionSpy for this spy is returned.
         """
         spy = FunctionSpy(self, *args, **kwargs)
-        self.spies.append(spy)
+        self.spies.add(spy)
         return spy
 
     def unspy(self, func):
         """Stops spying on a function."""
-        assert isinstance(func, FunctionSpy)
-        assert func in self.spies
+        try:
+            spy = func.spy
+        except AttributeError:
+            raise ValueError('Function %r has not been spied on.' % func)
 
-        func.unspy()
+        assert spy in self.spies
+
+        spy.unspy()
 
     def unspy_all(self):
         """Stops spying on all functions tracked by this agency."""

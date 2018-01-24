@@ -11,11 +11,11 @@ def do_math(a=1, b=2, *args, **kwargs):
     return a - b
 
 
-def fake_do_math(self, a=1, b=2, *args, **kwargs):
+def fake_do_math(self, a, b, *args, **kwargs):
     return a - b
 
 
-def fake_class_do_math(self, a=1, b=2, *args, **kwargs):
+def fake_class_do_math(self, a, b, *args, **kwargs):
     return a - b
 
 
@@ -48,21 +48,38 @@ class FunctionSpyTests(TestCase):
                          getattr(fake_something_awesome, FUNC_NAME_ATTR))
         self.assertEqual(spy.orig_func, something_awesome)
         self.assertEqual(spy.func_name, 'something_awesome')
-        self.assertEqual(spy.owner, None)
+        self.assertEqual(spy.func_type, spy.TYPE_FUNCTION)
         self.assertIsInstance(something_awesome, types.FunctionType)
 
     def test_construction_with_call_fake_and_bound_method(self):
         """Testing FunctionSpy construction with call_fake and bound method"""
         obj = MathClass()
-        orig_do_math = obj.do_math
-
         spy = self.agency.spy_on(obj.do_math, call_fake=fake_do_math)
 
-        self.assertEqual(obj.do_math, spy)
+        self.assertTrue(hasattr(obj.do_math, 'spy'))
+        self.assertIs(obj.do_math.spy, spy)
+        self.assertFalse(hasattr(MathClass.do_math, 'spy'))
+
         self.assertEqual(spy.func, fake_do_math)
-        self.assertEqual(spy.orig_func, orig_do_math)
         self.assertEqual(spy.func_name, 'do_math')
-        self.assertEqual(spy.owner, obj)
+        self.assertEqual(spy.func_type, spy.TYPE_BOUND_METHOD)
+        self.assertIsInstance(obj.do_math, types.MethodType)
+
+    def test_construction_with_call_fake_and_unbound_method(self):
+        """Testing FunctionSpy construction with call_fake and unbound method
+        """
+        spy = self.agency.spy_on(MathClass.do_math, call_fake=fake_do_math)
+
+        self.assertTrue(hasattr(MathClass.do_math, 'spy'))
+        self.assertIs(MathClass.do_math.spy, spy)
+        self.assertEqual(spy.func, fake_do_math)
+        self.assertEqual(spy.func_name, 'do_math')
+        self.assertEqual(spy.func_type, spy.TYPE_UNBOUND_METHOD)
+        self.assertEqual(spy.owner, MathClass)
+
+        obj = MathClass()
+        self.assertTrue(hasattr(obj.do_math, 'spy'))
+        self.assertIs(obj.do_math.spy, MathClass.do_math.spy)
         self.assertIsInstance(obj.do_math, types.MethodType)
 
     def test_construction_with_call_fake_and_classmethod(self):
@@ -73,11 +90,12 @@ class FunctionSpyTests(TestCase):
         spy = self.agency.spy_on(MathClass.class_do_math,
                                  call_fake=fake_class_do_math)
 
-        self.assertEqual(MathClass.class_do_math, spy)
+        self.assertTrue(hasattr(MathClass.class_do_math, 'spy'))
+        self.assertIs(MathClass.class_do_math.spy, spy)
+
         self.assertEqual(spy.func, fake_class_do_math)
         self.assertEqual(spy.orig_func, self.orig_class_do_math)
         self.assertEqual(spy.func_name, 'class_do_math')
-        self.assertEqual(spy.owner, MathClass)
         self.assertIsInstance(MathClass.class_do_math, types.MethodType)
 
     def test_construction_with_call_original_false(self):
@@ -85,10 +103,11 @@ class FunctionSpyTests(TestCase):
         obj = MathClass()
         spy = self.agency.spy_on(obj.do_math, call_original=False)
 
-        self.assertEqual(spy.func, None)
-        self.assertEqual(obj.do_math, spy)
+        self.assertTrue(hasattr(obj.do_math, 'spy'))
+        self.assertIs(obj.do_math.spy, spy)
+
+        self.assertIsNone(spy.func)
         self.assertEqual(spy.func_name, 'do_math')
-        self.assertEqual(spy.owner, obj)
         self.assertIsInstance(obj.do_math, types.MethodType)
 
     def test_construction_with_call_original_true(self):
@@ -101,30 +120,37 @@ class FunctionSpyTests(TestCase):
                          getattr(something_awesome, FUNC_NAME_ATTR))
         self.assertEqual(spy.orig_func, something_awesome)
         self.assertEqual(spy.func_name, 'something_awesome')
-        self.assertEqual(spy.owner, None)
         self.assertIsInstance(something_awesome, types.FunctionType)
 
     def test_construction_with_call_original_true_and_bound_method(self):
-        """Testing FunctionSpy construction with call_original=True and bound method"""
+        """Testing FunctionSpy construction with call_original=True and bound
+        method
+        """
         obj = MathClass()
         orig_do_math = obj.do_math
 
         spy = self.agency.spy_on(obj.do_math, call_original=True)
 
-        self.assertEqual(spy.func, orig_do_math)
-        self.assertEqual(obj.do_math, spy)
+        self.assertTrue(hasattr(obj.do_math, 'spy'))
+        self.assertIs(obj.do_math.spy, spy)
+        self.assertFalse(hasattr(MathClass.do_math, 'spy'))
+
+        self.assertEqual(spy.orig_func, orig_do_math)
         self.assertEqual(spy.func_name, 'do_math')
-        self.assertEqual(spy.owner, obj)
+        self.assertEqual(spy.func_type, spy.TYPE_BOUND_METHOD)
         self.assertIsInstance(obj.do_math, types.MethodType)
 
     def test_construction_with_call_original_and_classmethod(self):
-        """Testing FunctionSpy construction with call_original and classmethod"""
+        """Testing FunctionSpy construction with call_original and classmethod
+        """
         spy = self.agency.spy_on(MathClass.class_do_math, call_original=True)
 
-        self.assertEqual(spy.func, self.orig_class_do_math)
-        self.assertEqual(MathClass.class_do_math, spy)
+        self.assertTrue(hasattr(MathClass.class_do_math, 'spy'))
+        self.assertIs(MathClass.class_do_math.spy, spy)
+
+        self.assertEqual(spy.orig_func, self.orig_class_do_math)
         self.assertEqual(spy.func_name, 'class_do_math')
-        self.assertEqual(spy.owner, MathClass)
+        self.assertEqual(spy.func_type, spy.TYPE_BOUND_METHOD)
         self.assertIsInstance(MathClass.class_do_math, types.MethodType)
 
     def test_construction_with_falsy_im_self(self):
@@ -141,11 +167,10 @@ class FunctionSpyTests(TestCase):
 
         spy = self.agency.spy_on(my_object.foo)
 
-        self.assertEqual(spy.func, orig_foo)
-        self.assertEqual(my_object.foo, spy)
+        self.assertEqual(spy.orig_func, orig_foo)
         self.assertNotEqual(MyObject.foo, spy)
         self.assertEqual(spy.func_name, 'foo')
-        self.assertEqual(spy.owner, my_object)
+        self.assertEqual(spy.func_type, spy.TYPE_BOUND_METHOD)
         self.assertIsInstance(my_object.foo, types.MethodType)
 
     def test_call_with_call_fake(self):
@@ -168,8 +193,22 @@ class FunctionSpyTests(TestCase):
 
         self.assertEqual(result, -1)
         self.assertEqual(len(obj.do_math.calls), 1)
-        self.assertEqual(len(obj.do_math.calls[0].args), 0)
-        self.assertEqual(len(obj.do_math.calls[0].kwargs), 0)
+        self.assertTrue(obj.do_math.last_called_with(
+            a=1,
+            b=2))
+
+    def test_call_with_call_fake_and_unbound_method(self):
+        """Testing FunctionSpy calls with call_fake and unbound method"""
+        self.agency.spy_on(MathClass.do_math, call_fake=fake_do_math)
+
+        obj = MathClass()
+        result = obj.do_math()
+
+        self.assertEqual(result, -1)
+        self.assertEqual(len(obj.do_math.calls), 1)
+        self.assertTrue(obj.do_math.last_called_with(
+            a=1,
+            b=2))
 
     def test_call_with_call_fake_and_classmethod(self):
         """Testing FunctionSpy calls with call_fake and classmethod"""
@@ -177,10 +216,11 @@ class FunctionSpyTests(TestCase):
                            call_fake=fake_class_do_math)
         result = MathClass.class_do_math()
 
-        self.assertEqual(result, -1)
+        self.assertEqual(result, -3)
         self.assertEqual(len(MathClass.class_do_math.calls), 1)
-        self.assertEqual(len(MathClass.class_do_math.calls[0].args), 0)
-        self.assertEqual(len(MathClass.class_do_math.calls[0].kwargs), 0)
+        self.assertTrue(MathClass.class_do_math.last_called_with(
+            a=2,
+            b=5))
 
     def test_call_with_call_fake_and_args(self):
         """Testing FunctionSpy calls with call_fake and arguments"""
@@ -193,6 +233,7 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(len(obj.do_math.calls), 1)
         self.assertEqual(obj.do_math.calls[0].args, (10, 20))
         self.assertEqual(len(obj.do_math.calls[0].kwargs), 0)
+        self.assertTrue(obj.do_math.last_called_with(10, 20))
 
     def test_call_with_call_fake_and_kwargs(self):
         """Testing FunctionSpy calls with call_fake and keyword arguments"""
@@ -206,7 +247,7 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(len(obj.do_math.calls[0].args), 0)
         self.assertEqual(obj.do_math.calls[0].kwargs, {
             'a': 10,
-            'b': 20
+            'b': 20,
         })
 
     def test_call_with_call_original_false(self):
@@ -216,10 +257,9 @@ class FunctionSpyTests(TestCase):
         self.agency.spy_on(obj.do_math, call_original=False)
         result = obj.do_math()
 
-        self.assertEqual(result, None)
+        self.assertIsNone(result)
         self.assertEqual(len(obj.do_math.calls), 1)
-        self.assertEqual(len(obj.do_math.calls[0].args), 0)
-        self.assertEqual(len(obj.do_math.calls[0].kwargs), 0)
+        self.assertTrue(obj.do_math.last_called_with(a=1, b=2))
 
     def test_call_with_all_original_false_and_args(self):
         """Testing FunctionSpy calls with call_original=False and arguments"""
@@ -310,8 +350,7 @@ class FunctionSpyTests(TestCase):
 
         self.assertEqual(result, 3)
         self.assertEqual(len(obj.do_math.calls), 1)
-        self.assertEqual(len(obj.do_math.calls[0].args), 0)
-        self.assertEqual(len(obj.do_math.calls[0].kwargs), 0)
+        self.assertTrue(obj.do_math.last_called_with(a=1, b=2))
 
     def test_call_with_call_original_true_and_bound_method_args(self):
         """Testing FunctionSpy calls with call_original=True and bound method
@@ -344,6 +383,45 @@ class FunctionSpyTests(TestCase):
             'b': 20
         })
 
+    def test_call_with_call_original_true_and_unbound_method(self):
+        """Testing FunctionSpy calls with call_original=True and unbound method
+        """
+        self.agency.spy_on(MathClass.do_math, call_original=True)
+
+        obj = MathClass()
+        result = obj.do_math()
+
+        self.assertEqual(result, 3)
+        self.assertEqual(len(MathClass.do_math.calls), 1)
+        self.assertTrue(MathClass.do_math.last_called_with(a=1, b=2))
+
+    def test_call_with_call_original_true_and_unbound_method_args(self):
+        """Testing FunctionSpy calls with call_original=True and unbound
+        method with all positional arguments
+        """
+        self.agency.spy_on(MathClass.do_math, call_original=True)
+
+        obj = MathClass()
+        result = obj.do_math(10, 20)
+
+        self.assertEqual(result, 30)
+        self.assertEqual(len(MathClass.do_math.calls), 1)
+        self.assertTrue(MathClass.do_math.last_called_with(10, 20))
+
+    def test_call_with_call_original_true_and_unbound_method_kwargs(self):
+        """Testing FunctionSpy calls with call_original=True and unbound method
+        with all keyword arguments
+        """
+        self.agency.spy_on(MathClass.do_math, call_original=True)
+
+        obj = MathClass()
+        result = obj.do_math(a=10, b=20)
+
+        self.assertEqual(result, 30)
+        self.assertEqual(len(MathClass.do_math.calls), 1)
+        self.assertEqual(len(MathClass.do_math.calls[0].args), 0)
+        self.assertTrue(MathClass.do_math.last_called_with(a=10, b=20))
+
     def test_call_with_call_original_true_and_classmethod(self):
         """Testing FunctionSpy calls with call_original=True and classmethod"""
         self.agency.spy_on(MathClass.class_do_math, call_original=True)
@@ -351,8 +429,7 @@ class FunctionSpyTests(TestCase):
 
         self.assertEqual(result, 10)
         self.assertEqual(len(MathClass.class_do_math.calls), 1)
-        self.assertEqual(len(MathClass.class_do_math.calls[0].args), 0)
-        self.assertEqual(len(MathClass.class_do_math.calls[0].kwargs), 0)
+        self.assertTrue(MathClass.class_do_math.last_called_with(a=2, b=5))
 
     def test_call_with_call_original_true_and_classmethod_args(self):
         """Testing FunctionSpy calls with call_original=True and classmethod
@@ -433,21 +510,33 @@ class FunctionSpyTests(TestCase):
     def test_unspy_and_bound_method(self):
         """Testing FunctionSpy.unspy and bound method"""
         obj = MathClass()
-        orig_do_math = obj.do_math
+        func_dict = obj.do_math.__dict__.copy()
 
         spy = self.agency.spy_on(obj.do_math)
-        self.assertEqual(obj.do_math, spy)
+        self.assertNotEqual(obj.do_math.__dict__, func_dict)
 
         spy.unspy()
-        self.assertEqual(obj.do_math, orig_do_math)
+        self.assertEqual(obj.do_math.__dict__, func_dict)
+
+    def test_unspy_and_unbound_method(self):
+        """Testing FunctionSpy.unspy and unbound method"""
+        func_dict = MathClass.do_math.__dict__.copy()
+
+        spy = self.agency.spy_on(MathClass.do_math)
+        self.assertNotEqual(MathClass.do_math.__dict__, func_dict)
+
+        spy.unspy()
+        self.assertEqual(MathClass.do_math.__dict__, func_dict)
 
     def test_unspy_with_classmethod(self):
         """Testing FunctionSpy.unspy with classmethod"""
+        func_dict = MathClass.class_do_math.__dict__.copy()
+
         spy = self.agency.spy_on(MathClass.class_do_math)
-        self.assertEqual(MathClass.class_do_math, spy)
+        self.assertNotEqual(MathClass.class_do_math.__dict__, func_dict)
 
         spy.unspy()
-        self.assertEqual(MathClass.class_do_math, self.orig_class_do_math)
+        self.assertEqual(MathClass.class_do_math.__dict__, func_dict)
 
     def test_called_with(self):
         """Testing FunctionSpy.called_with"""
@@ -646,34 +735,56 @@ class FunctionSpyTests(TestCase):
 
         obj.do_math(1, 2)
         self.assertEqual(len(obj.do_math.calls), 1)
+        self.assertEqual(obj.do_math.last_call, obj.do_math.calls[-1])
+        self.assertTrue(obj.do_math.called)
 
         obj.do_math.reset_calls()
         self.assertEqual(len(obj.do_math.calls), 0)
+        self.assertIsNone(obj.do_math.last_call)
+        self.assertFalse(obj.do_math.called)
 
     def test_repr(self):
         """Testing FunctionSpy.__repr__"""
         self.agency.spy_on(something_awesome)
 
         self.assertTrue(hasattr(something_awesome, 'spy'))
-        self.assertEqual(repr(something_awesome.spy),
-                         '<Spy for something_awesome>')
+        self.assertTrue(repr(something_awesome.spy),
+                        '<Spy for something_awesome (0 calls)>')
+
+    def test_repr_and_function(self):
+        """Testing FunctionSpy.__repr__ and function"""
+        self.agency.spy_on(do_math)
+
+        self.assertEqual(repr(do_math.spy),
+                         '<Spy for function do_math (0 calls)>')
 
     def test_repr_and_bound_method(self):
         """Testing FunctionSpy.__repr__ and bound method"""
         obj = MathClass()
         self.agency.spy_on(obj.do_math)
 
-        self.assertEqual(repr(obj.do_math),
+        obj.do_math()
+
+        self.assertEqual(repr(obj.do_math.spy),
                          '<Spy for bound method MathClass.do_math '
-                         'of %r>' % obj)
+                         'of %r (1 call)>' % obj)
+
+    def test_repr_and_unbound_method(self):
+        """Testing FunctionSpy.__repr__ and unbound method"""
+        self.agency.spy_on(MathClass.do_math)
+
+        self.assertEqual(repr(MathClass.do_math.spy),
+                         '<Spy for unbound method MathClass.do_math '
+                         'of %r (0 calls)>' % MathClass)
 
     def test_repr_with_classmethod(self):
         """Testing FunctionSpy.__repr__ with classmethod"""
         self.agency.spy_on(MathClass.class_do_math)
 
-        self.assertEqual(repr(MathClass.class_do_math),
-                         '<Spy for classmethod MathClass.class_do_math of %r>'
-                         % MathClass)
+        self.assertEqual(
+            repr(MathClass.class_do_math.spy),
+            '<Spy for classmethod MathClass.class_do_math of %r (0 calls)>'
+            % MathClass)
 
     def test_getargspec_with_function(self):
         """Testing FunctionSpy in inspect.getargspec() with function"""
@@ -691,6 +802,17 @@ class FunctionSpyTests(TestCase):
         self.agency.spy_on(obj.do_math)
 
         args, varargs, keywords, defaults = inspect.getargspec(obj.do_math)
+        self.assertEqual(args, ['self', 'a', 'b'])
+        self.assertEqual(varargs, 'args')
+        self.assertEqual(keywords, 'kwargs')
+        self.assertEqual(defaults, (1, 2))
+
+    def test_getargspec_with_unbound_method(self):
+        """Testing FunctionSpy in inspect.getargspec() with unbound method"""
+        self.agency.spy_on(MathClass.do_math)
+
+        args, varargs, keywords, defaults = \
+            inspect.getargspec(MathClass.do_math)
         self.assertEqual(args, ['self', 'a', 'b'])
         self.assertEqual(varargs, 'args')
         self.assertEqual(keywords, 'kwargs')

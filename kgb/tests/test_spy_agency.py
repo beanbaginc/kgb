@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 import unittest
 
 from kgb.agency import SpyAgency
-from kgb.spies import FunctionSpy
 from kgb.tests.base import MathClass, TestCase
 
 
@@ -15,7 +14,7 @@ class SpyAgencyTests(TestCase):
         obj = MathClass()
 
         spy = self.agency.spy_on(obj.do_math)
-        self.assertEqual(self.agency.spies, [spy])
+        self.assertEqual(self.agency.spies, set([spy]))
 
     def test_unspy(self):
         """Testing SpyAgency.unspy"""
@@ -23,10 +22,12 @@ class SpyAgencyTests(TestCase):
         orig_do_math = obj.do_math
 
         spy = self.agency.spy_on(obj.do_math)
-        self.assertEqual(self.agency.spies, [spy])
+        self.assertEqual(self.agency.spies, set([spy]))
+        self.assertTrue(hasattr(obj.do_math, 'spy'))
 
         self.agency.unspy(obj.do_math)
-        self.assertEqual(self.agency.spies, [])
+        self.assertEqual(self.agency.spies, set())
+        self.assertFalse(hasattr(obj.do_math, 'spy'))
 
         self.assertEqual(obj.do_math, orig_do_math)
 
@@ -38,13 +39,17 @@ class SpyAgencyTests(TestCase):
         spy1 = self.agency.spy_on(obj.do_math)
         spy2 = self.agency.spy_on(MathClass.class_do_math)
 
-        self.assertEqual(self.agency.spies, [spy1, spy2])
+        self.assertEqual(self.agency.spies, set([spy1, spy2]))
+        self.assertTrue(hasattr(obj.do_math, 'spy'))
+        self.assertTrue(hasattr(MathClass.class_do_math, 'spy'))
 
         self.agency.unspy_all()
         self.assertEqual(self.agency.spies, [])
 
         self.assertEqual(obj.do_math, orig_do_math)
         self.assertEqual(MathClass.class_do_math, self.orig_class_do_math)
+        self.assertFalse(hasattr(obj.do_math, 'spy'))
+        self.assertFalse(hasattr(MathClass.class_do_math, 'spy'))
 
 
 class MixinTests(SpyAgency, unittest.TestCase):
@@ -53,7 +58,7 @@ class MixinTests(SpyAgency, unittest.TestCase):
         obj = MathClass()
 
         self.spy_on(obj.do_math)
-        self.assertTrue(isinstance(obj.do_math, FunctionSpy))
+        self.assertTrue(hasattr(obj.do_math, 'spy'))
 
         result = obj.do_math()
         self.assertEqual(result, 3)
@@ -62,10 +67,14 @@ class MixinTests(SpyAgency, unittest.TestCase):
         """Testing SpyAgency mixed in with tearDown"""
         obj = MathClass()
         orig_do_math = obj.do_math
+        func_dict = obj.do_math.__dict__.copy()
 
         self.spy_on(obj.do_math)
-        self.assertTrue(isinstance(obj.do_math, FunctionSpy))
+        self.assertTrue(hasattr(obj.do_math, 'spy'))
+        self.assertNotEqual(func_dict, obj.do_math.__dict__)
 
         self.tearDown()
 
         self.assertEqual(obj.do_math, orig_do_math)
+        self.assertFalse(hasattr(obj.do_math, 'spy'))
+        self.assertEqual(func_dict, obj.do_math.__dict__)

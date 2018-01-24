@@ -10,8 +10,18 @@ class MathClass(object):
     def do_math(self, a=1, b=2, *args, **kwargs):
         return a + b
 
+    def do_math_pos(self, a, b):
+        return a + b
+
+    def do_math_mixed(self, a, b=2, *args, **kwargs):
+        return a + b
+
     @classmethod
     def class_do_math(cls, a=2, b=5, *args, **kwargs):
+        return a * b
+
+    @classmethod
+    def class_do_math_pos(cls, a, b):
         return a * b
 
 

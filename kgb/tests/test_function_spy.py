@@ -11,6 +11,14 @@ def do_math(a=1, b=2, *args, **kwargs):
     return a - b
 
 
+def do_math_pos(a, b):
+    return a - b
+
+
+def do_math_mixed(a, b=2, *args, **kwargs):
+    return a - b
+
+
 def fake_do_math(self, a, b, *args, **kwargs):
     return a - b
 
@@ -173,7 +181,7 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(spy.func_type, spy.TYPE_BOUND_METHOD)
         self.assertIsInstance(my_object.foo, types.MethodType)
 
-    def test_call_with_call_fake(self):
+    def test_call_with_fake(self):
         """Testing FunctionSpy calls with call_fake"""
         self.agency.spy_on(something_awesome,
                            call_fake=fake_something_awesome)
@@ -184,7 +192,7 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(len(something_awesome.spy.calls[0].args), 0)
         self.assertEqual(len(something_awesome.spy.calls[0].kwargs), 0)
 
-    def test_call_with_call_fake_and_bound_method(self):
+    def test_call_with_fake_and_bound_method(self):
         """Testing FunctionSpy calls with call_fake and bound method"""
         obj = MathClass()
 
@@ -197,7 +205,7 @@ class FunctionSpyTests(TestCase):
             a=1,
             b=2))
 
-    def test_call_with_call_fake_and_unbound_method(self):
+    def test_call_with_fake_and_unbound_method(self):
         """Testing FunctionSpy calls with call_fake and unbound method"""
         self.agency.spy_on(MathClass.do_math, call_fake=fake_do_math)
 
@@ -210,7 +218,7 @@ class FunctionSpyTests(TestCase):
             a=1,
             b=2))
 
-    def test_call_with_call_fake_and_classmethod(self):
+    def test_call_with_fake_and_classmethod(self):
         """Testing FunctionSpy calls with call_fake and classmethod"""
         self.agency.spy_on(MathClass.class_do_math,
                            call_fake=fake_class_do_math)
@@ -222,8 +230,22 @@ class FunctionSpyTests(TestCase):
             a=2,
             b=5))
 
-    def test_call_with_call_fake_and_args(self):
+    def test_call_with_fake_and_args(self):
         """Testing FunctionSpy calls with call_fake and arguments"""
+        obj = MathClass()
+
+        self.agency.spy_on(obj.do_math_pos, call_fake=fake_do_math)
+        result = obj.do_math_pos(10, 20)
+
+        self.assertEqual(result, -10)
+        self.assertEqual(len(obj.do_math_pos.calls), 1)
+        self.assertEqual(obj.do_math_pos.calls[0].args, (10, 20))
+        self.assertEqual(obj.do_math_pos.calls[0].kwargs, {})
+
+    def test_call_with_fake_and_args_for_kwargs(self):
+        """Testing FunctionSpy calls with call_fake and positional arguments
+        in place of keyword arguments
+        """
         obj = MathClass()
 
         self.agency.spy_on(obj.do_math, call_fake=fake_do_math)
@@ -231,17 +253,20 @@ class FunctionSpyTests(TestCase):
 
         self.assertEqual(result, -10)
         self.assertEqual(len(obj.do_math.calls), 1)
-        self.assertEqual(obj.do_math.calls[0].args, (10, 20))
-        self.assertEqual(len(obj.do_math.calls[0].kwargs), 0)
-        self.assertTrue(obj.do_math.last_called_with(10, 20))
+        self.assertEqual(obj.do_math.calls[0].args, ())
+        self.assertEqual(obj.do_math.calls[0].kwargs, {
+            'a': 10,
+            'b': 20,
+        })
 
-    def test_call_with_call_fake_and_kwargs(self):
+    def test_call_with_fake_and_kwargs(self):
         """Testing FunctionSpy calls with call_fake and keyword arguments"""
         obj = MathClass()
 
         self.agency.spy_on(obj.do_math, call_fake=fake_do_math)
         result = obj.do_math(a=10, b=20)
 
+        print(obj.do_math.calls)
         self.assertEqual(result, -10)
         self.assertEqual(len(obj.do_math.calls), 1)
         self.assertEqual(len(obj.do_math.calls[0].args), 0)
@@ -250,7 +275,7 @@ class FunctionSpyTests(TestCase):
             'b': 20,
         })
 
-    def test_call_with_call_original_false(self):
+    def test_call_with_original_false(self):
         """Testing FunctionSpy calls with call_original=False"""
         obj = MathClass()
 
@@ -262,7 +287,23 @@ class FunctionSpyTests(TestCase):
         self.assertTrue(obj.do_math.last_called_with(a=1, b=2))
 
     def test_call_with_all_original_false_and_args(self):
-        """Testing FunctionSpy calls with call_original=False and arguments"""
+        """Testing FunctionSpy calls with call_original=False and positional
+        arguments
+        """
+        obj = MathClass()
+
+        self.agency.spy_on(obj.do_math_pos, call_original=False)
+        result = obj.do_math_pos(10, 20)
+
+        self.assertIsNone(result)
+        self.assertEqual(len(obj.do_math_pos.calls), 1)
+        self.assertEqual(obj.do_math_pos.calls[0].args, (10, 20))
+        self.assertEqual(obj.do_math_pos.calls[0].kwargs, {})
+
+    def test_call_with_all_original_false_and_args_for_kwargs(self):
+        """Testing FunctionSpy calls with call_original=False and positional
+        arguments in place of keyword arguments
+        """
         obj = MathClass()
 
         self.agency.spy_on(obj.do_math, call_original=False)
@@ -270,10 +311,13 @@ class FunctionSpyTests(TestCase):
 
         self.assertEqual(result, None)
         self.assertEqual(len(obj.do_math.calls), 1)
-        self.assertEqual(obj.do_math.calls[0].args, (10, 20))
-        self.assertEqual(len(obj.do_math.calls[0].kwargs), 0)
+        self.assertEqual(obj.do_math.calls[0].args, ())
+        self.assertEqual(obj.do_math.calls[0].kwargs, {
+            'a': 10,
+            'b': 20,
+        })
 
-    def test_call_with_call_original_false_and_kwargs(self):
+    def test_call_with_original_false_and_kwargs(self):
         """Testing FunctionSpy calls with call_original=False and keyword arguments"""
         obj = MathClass()
 
@@ -288,7 +332,7 @@ class FunctionSpyTests(TestCase):
             'b': 20
         })
 
-    def test_call_with_call_original_true_and_function(self):
+    def test_call_with_original_true_and_function(self):
         """Testing FunctionSpy calls with call_original=True and function"""
         self.agency.spy_on(something_awesome, call_original=True)
         result = something_awesome()
@@ -299,19 +343,34 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(len(something_awesome.spy.calls[0].args), 0)
         self.assertEqual(len(something_awesome.spy.calls[0].kwargs), 0)
 
-    def test_call_with_call_original_true_and_function_args(self):
+    def test_call_with_original_true_and_function_args(self):
         """Testing FunctionSpy calls with call_original=True and function
         with all positional arguments
+        """
+        self.agency.spy_on(do_math_pos, call_original=True)
+        result = do_math_pos(10, 20)
+
+        self.assertEqual(result, -10)
+        self.assertEqual(len(do_math_pos.spy.calls), 1)
+        self.assertEqual(do_math_pos.spy.calls[0].args, (10, 20))
+        self.assertEqual(len(do_math_pos.spy.calls[0].kwargs), 0)
+
+    def test_call_with_original_true_and_function_args_for_kwargs(self):
+        """Testing FunctionSpy calls with call_original=True and function
+        with all positional arguments in place of keyword arguments
         """
         self.agency.spy_on(do_math, call_original=True)
         result = do_math(10, 20)
 
         self.assertEqual(result, -10)
         self.assertEqual(len(do_math.spy.calls), 1)
-        self.assertEqual(do_math.spy.calls[0].args, (10, 20))
-        self.assertEqual(len(do_math.spy.calls[0].kwargs), 0)
+        self.assertEqual(do_math.spy.calls[0].args, ())
+        self.assertEqual(do_math.spy.calls[0].kwargs, {
+            'a': 10,
+            'b': 20,
+        })
 
-    def test_call_with_call_original_true_and_function_kwargs(self):
+    def test_call_with_original_true_and_function_kwargs(self):
         """Testing FunctionSpy calls with call_original=True and function
         with all keyword arguments
         """
@@ -326,7 +385,7 @@ class FunctionSpyTests(TestCase):
             'b': 10
         })
 
-    def test_call_with_call_original_true_and_function_mixed(self):
+    def test_call_with_original_true_and_function_mixed(self):
         """Testing FunctionSpy calls with call_original=True and function
         with all mixed argument types
         """
@@ -335,13 +394,33 @@ class FunctionSpyTests(TestCase):
 
         self.assertEqual(result, -10)
         self.assertEqual(len(do_math.spy.calls), 1)
-        self.assertEqual(do_math.spy.calls[0].args, (10,))
+        self.assertEqual(do_math.spy.calls[0].args, ())
         self.assertEqual(do_math.spy.calls[0].kwargs, {
+            'a': 10,
             'b': 20,
             'unused': True,
         })
 
-    def test_call_with_call_original_true_and_bound_method(self):
+        self.agency.spy_on(do_math_pos, call_original=True)
+        result = do_math_pos(10, b=20)
+
+        self.assertEqual(result, -10)
+        self.assertEqual(len(do_math_pos.spy.calls), 1)
+        self.assertEqual(do_math_pos.spy.calls[0].args, (10, 20))
+        self.assertEqual(do_math_pos.spy.calls[0].kwargs, {})
+
+        self.agency.spy_on(do_math_mixed, call_original=True)
+        result = do_math_mixed(10, b=20, unused=True)
+
+        self.assertEqual(result, -10)
+        self.assertEqual(len(do_math_mixed.spy.calls), 1)
+        self.assertEqual(do_math_mixed.spy.calls[0].args, (10,))
+        self.assertEqual(do_math_mixed.spy.calls[0].kwargs, {
+            'b': 20,
+            'unused': True,
+        })
+
+    def test_call_with_original_true_and_bound_method(self):
         """Testing FunctionSpy calls with call_original=True and bound method"""
         obj = MathClass()
 
@@ -352,9 +431,23 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(len(obj.do_math.calls), 1)
         self.assertTrue(obj.do_math.last_called_with(a=1, b=2))
 
-    def test_call_with_call_original_true_and_bound_method_args(self):
+    def test_call_with_original_true_and_bound_method_args(self):
         """Testing FunctionSpy calls with call_original=True and bound method
         with all positional arguments
+        """
+        obj = MathClass()
+
+        self.agency.spy_on(obj.do_math_pos, call_original=True)
+        result = obj.do_math_pos(10, 20)
+
+        self.assertEqual(result, 30)
+        self.assertEqual(len(obj.do_math_pos.calls), 1)
+        self.assertEqual(obj.do_math_pos.calls[0].args, (10, 20))
+        self.assertEqual(len(obj.do_math_pos.calls[0].kwargs), 0)
+
+    def test_call_with_original_true_and_bound_method_args_for_kwargs(self):
+        """Testing FunctionSpy calls with call_original=True and bound method
+        with all positional arguments in place of keyword arguments
         """
         obj = MathClass()
 
@@ -363,10 +456,13 @@ class FunctionSpyTests(TestCase):
 
         self.assertEqual(result, 30)
         self.assertEqual(len(obj.do_math.calls), 1)
-        self.assertEqual(obj.do_math.calls[0].args, (10, 20))
-        self.assertEqual(len(obj.do_math.calls[0].kwargs), 0)
+        self.assertEqual(obj.do_math.calls[0].args, ())
+        self.assertEqual(obj.do_math.calls[0].kwargs, {
+            'a': 10,
+            'b': 20,
+        })
 
-    def test_call_with_call_original_true_and_bound_method_kwargs(self):
+    def test_call_with_original_true_and_bound_method_kwargs(self):
         """Testing FunctionSpy calls with call_original=True and bound method
         with all keyword arguments
         """
@@ -383,7 +479,7 @@ class FunctionSpyTests(TestCase):
             'b': 20
         })
 
-    def test_call_with_call_original_true_and_unbound_method(self):
+    def test_call_with_original_true_and_unbound_method(self):
         """Testing FunctionSpy calls with call_original=True and unbound method
         """
         self.agency.spy_on(MathClass.do_math, call_original=True)
@@ -395,9 +491,22 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(len(MathClass.do_math.calls), 1)
         self.assertTrue(MathClass.do_math.last_called_with(a=1, b=2))
 
-    def test_call_with_call_original_true_and_unbound_method_args(self):
+    def test_call_with_original_true_and_unbound_method_args(self):
         """Testing FunctionSpy calls with call_original=True and unbound
         method with all positional arguments
+        """
+        self.agency.spy_on(MathClass.do_math_pos, call_original=True)
+
+        obj = MathClass()
+        result = obj.do_math_pos(10, 20)
+
+        self.assertEqual(result, 30)
+        self.assertEqual(len(MathClass.do_math_pos.calls), 1)
+        self.assertTrue(MathClass.do_math_pos.last_called_with(10, 20))
+
+    def test_call_with_original_true_and_unbound_method_args_for_kwargs(self):
+        """Testing FunctionSpy calls with call_original=True and unbound
+        method with all positional arguments in place of keyword arguments
         """
         self.agency.spy_on(MathClass.do_math, call_original=True)
 
@@ -406,9 +515,9 @@ class FunctionSpyTests(TestCase):
 
         self.assertEqual(result, 30)
         self.assertEqual(len(MathClass.do_math.calls), 1)
-        self.assertTrue(MathClass.do_math.last_called_with(10, 20))
+        self.assertTrue(MathClass.do_math.last_called_with(a=10, b=20))
 
-    def test_call_with_call_original_true_and_unbound_method_kwargs(self):
+    def test_call_with_original_true_and_unbound_method_kwargs(self):
         """Testing FunctionSpy calls with call_original=True and unbound method
         with all keyword arguments
         """
@@ -422,7 +531,7 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(len(MathClass.do_math.calls[0].args), 0)
         self.assertTrue(MathClass.do_math.last_called_with(a=10, b=20))
 
-    def test_call_with_call_original_true_and_classmethod(self):
+    def test_call_with_original_true_and_classmethod(self):
         """Testing FunctionSpy calls with call_original=True and classmethod"""
         self.agency.spy_on(MathClass.class_do_math, call_original=True)
         result = MathClass.class_do_math()
@@ -431,19 +540,34 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(len(MathClass.class_do_math.calls), 1)
         self.assertTrue(MathClass.class_do_math.last_called_with(a=2, b=5))
 
-    def test_call_with_call_original_true_and_classmethod_args(self):
+    def test_call_with_original_true_and_classmethod_args(self):
         """Testing FunctionSpy calls with call_original=True and classmethod
         with all positional arguments
+        """
+        self.agency.spy_on(MathClass.class_do_math_pos, call_original=True)
+        result = MathClass.class_do_math_pos(10, 20)
+
+        self.assertEqual(result, 200)
+        self.assertEqual(len(MathClass.class_do_math_pos.calls), 1)
+        self.assertEqual(MathClass.class_do_math_pos.calls[0].args, (10, 20))
+        self.assertEqual(len(MathClass.class_do_math_pos.calls[0].kwargs), 0)
+
+    def test_call_with_original_true_and_classmethod_args_for_kwargs(self):
+        """Testing FunctionSpy calls with call_original=True and classmethod
+        with all positional arguments in place of keyword arguments
         """
         self.agency.spy_on(MathClass.class_do_math, call_original=True)
         result = MathClass.class_do_math(10, 20)
 
         self.assertEqual(result, 200)
         self.assertEqual(len(MathClass.class_do_math.calls), 1)
-        self.assertEqual(MathClass.class_do_math.calls[0].args, (10, 20))
-        self.assertEqual(len(MathClass.class_do_math.calls[0].kwargs), 0)
+        self.assertEqual(MathClass.class_do_math.calls[0].args, ())
+        self.assertEqual(MathClass.class_do_math.calls[0].kwargs, {
+            'a': 10,
+            'b': 20,
+        })
 
-    def test_call_with_call_original_true_and_classmethod_kwargs(self):
+    def test_call_with_original_true_and_classmethod_kwargs(self):
         """Testing FunctionSpy calls with call_original=True and classmethod
         with all keyword arguments
         """
@@ -481,7 +605,7 @@ class FunctionSpyTests(TestCase):
 
         last_call = obj.do_math.last_call
         self.assertNotEqual(last_call, None)
-        self.assertEqual(last_call.args, (20, 30))
+        self.assertTrue(last_call.called_with(a=20, b=30))
 
     def test_last_call_with_no_calls(self):
         """Testing FunctionSpy.last_call on uncalled function"""
@@ -541,107 +665,119 @@ class FunctionSpyTests(TestCase):
     def test_called_with(self):
         """Testing FunctionSpy.called_with"""
         obj = MathClass()
-        self.agency.spy_on(obj.do_math)
+        self.agency.spy_on(obj.do_math_mixed)
 
-        obj.do_math(1, 2)
-        obj.do_math(3, 4)
+        obj.do_math_mixed(1, b=2)
+        obj.do_math_mixed(3, b=4)
 
-        self.assertTrue(obj.do_math.called_with(1, 2))
-        self.assertTrue(obj.do_math.called_with(3, 4))
-        self.assertFalse(obj.do_math.called_with(5, 6))
+        self.assertTrue(obj.do_math_mixed.called_with(1, b=2))
+        self.assertTrue(obj.do_math_mixed.called_with(3, b=4))
+        self.assertFalse(obj.do_math_mixed.called_with(a=1, b=2))
+        self.assertFalse(obj.do_math_mixed.called_with(1, 2))
+        self.assertFalse(obj.do_math_mixed.called_with(a=3, b=4))
+        self.assertFalse(obj.do_math_mixed.called_with(3, 4))
+        self.assertFalse(obj.do_math_mixed.called_with(5, b=6))
 
     def test_called_with_and_keyword_args(self):
         """Testing FunctionSpy.called_with and keyword arguments"""
         obj = MathClass()
-        self.agency.spy_on(obj.do_math)
+        self.agency.spy_on(obj.do_math_mixed)
 
-        obj.do_math(a=1, b=2)
-        obj.do_math(a=3, b=4)
+        obj.do_math_mixed(a=1, b=2)
+        obj.do_math_mixed(a=3, b=4)
 
-        self.assertTrue(obj.do_math.called_with(a=1, b=2))
-        self.assertTrue(obj.do_math.called_with(a=3, b=4))
-        self.assertFalse(obj.do_math.called_with(a=5, b=6))
+        self.assertTrue(obj.do_math_mixed.called_with(1, b=2))
+        self.assertTrue(obj.do_math_mixed.called_with(3, b=4))
+        self.assertFalse(obj.do_math_mixed.called_with(a=1, b=2))
+        self.assertFalse(obj.do_math_mixed.called_with(a=3, b=4))
+        self.assertFalse(obj.do_math_mixed.called_with(5, b=6))
 
     def test_called_with_and_partial_args(self):
         """Testing FunctionSpy.called_with and partial arguments"""
         obj = MathClass()
-        self.agency.spy_on(obj.do_math)
+        self.agency.spy_on(obj.do_math_mixed)
 
-        obj.do_math(1, 2)
-        obj.do_math(3, 4)
+        obj.do_math_mixed(1, 2)
+        obj.do_math_mixed(3, 4)
 
-        self.assertTrue(obj.do_math.called_with(1))
-        self.assertTrue(obj.do_math.called_with(3))
-        self.assertFalse(obj.do_math.called_with(4))
-        self.assertFalse(obj.do_math.called_with(1, 2, 3))
+        self.assertTrue(obj.do_math_mixed.called_with(1))
+        self.assertTrue(obj.do_math_mixed.called_with(3))
+        self.assertFalse(obj.do_math_mixed.called_with(4))
+        self.assertFalse(obj.do_math_mixed.called_with(1, 2, 3))
 
     def test_called_with_and_partial_kwargs(self):
         """Testing FunctionSpy.called_with and partial keyword arguments"""
         obj = MathClass()
-        self.agency.spy_on(obj.do_math)
+        self.agency.spy_on(obj.do_math_mixed)
 
-        obj.do_math(a=1, b=2)
-        obj.do_math(a=3, b=4)
+        obj.do_math_mixed(a=1, b=2)
+        obj.do_math_mixed(a=3, b=4)
 
-        self.assertTrue(obj.do_math.called_with(a=1))
-        self.assertTrue(obj.do_math.called_with(b=2))
-        self.assertTrue(obj.do_math.called_with(a=3))
-        self.assertTrue(obj.do_math.called_with(b=4))
-        self.assertFalse(obj.do_math.called_with(a=4))
-        self.assertFalse(obj.do_math.called_with(a=1, b=2, c=3))
-        self.assertFalse(obj.do_math.called_with(a=1, b=4))
-        self.assertFalse(obj.do_math.called_with(a=3, b=2))
+        self.assertTrue(obj.do_math_mixed.called_with(1))
+        self.assertTrue(obj.do_math_mixed.called_with(b=2))
+        self.assertTrue(obj.do_math_mixed.called_with(3))
+        self.assertTrue(obj.do_math_mixed.called_with(b=4))
+        self.assertFalse(obj.do_math_mixed.called_with(1, 2))
+        self.assertFalse(obj.do_math_mixed.called_with(3, 4))
+        self.assertFalse(obj.do_math_mixed.called_with(a=1, b=2))
+        self.assertFalse(obj.do_math_mixed.called_with(a=3, b=4))
+        self.assertFalse(obj.do_math_mixed.called_with(a=4))
+        self.assertFalse(obj.do_math_mixed.called_with(a=1, b=2, c=3))
+        self.assertFalse(obj.do_math_mixed.called_with(a=1, b=4))
+        self.assertFalse(obj.do_math_mixed.called_with(a=3, b=2))
 
     def test_last_called_with(self):
         """Testing FunctionSpy.last_called_with"""
         obj = MathClass()
-        self.agency.spy_on(obj.do_math)
+        self.agency.spy_on(obj.do_math_mixed)
 
-        obj.do_math(1, 2)
-        obj.do_math(3, 4)
+        obj.do_math_mixed(1, 2)
+        obj.do_math_mixed(3, 4)
 
-        self.assertFalse(obj.do_math.last_called_with(1, 2))
-        self.assertTrue(obj.do_math.last_called_with(3, 4))
+        self.assertFalse(obj.do_math_mixed.last_called_with(1, a=2))
+        self.assertTrue(obj.do_math_mixed.last_called_with(3, b=4))
 
     def test_last_called_with_and_keyword_args(self):
         """Testing FunctionSpy.last_called_with and keyword arguments"""
         obj = MathClass()
-        self.agency.spy_on(obj.do_math)
+        self.agency.spy_on(obj.do_math_mixed)
 
-        obj.do_math(a=1, b=2)
-        obj.do_math(a=3, b=4)
+        obj.do_math_mixed(a=1, b=2)
+        obj.do_math_mixed(a=3, b=4)
 
-        self.assertTrue(obj.do_math.last_called_with(a=3, b=4))
-        self.assertFalse(obj.do_math.last_called_with(a=1, b=2))
-        self.assertFalse(obj.do_math.last_called_with(a=1, b=2, c=3))
+        self.assertTrue(obj.do_math_mixed.last_called_with(3, b=4))
+        self.assertFalse(obj.do_math_mixed.last_called_with(1, b=2))
+        self.assertFalse(obj.do_math_mixed.last_called_with(1, b=2, c=3))
 
     def test_last_called_with_and_partial_args(self):
         """Testing FunctionSpy.called_with and partial arguments"""
         obj = MathClass()
-        self.agency.spy_on(obj.do_math)
+        self.agency.spy_on(obj.do_math_mixed)
 
-        obj.do_math(1, 2)
-        obj.do_math(3, 4)
+        obj.do_math_mixed(1, 2)
+        obj.do_math_mixed(3, 4)
 
-        self.assertTrue(obj.do_math.last_called_with(3))
-        self.assertTrue(obj.do_math.last_called_with(3, 4))
-        self.assertFalse(obj.do_math.last_called_with(3, 4, 5))
-        self.assertFalse(obj.do_math.last_called_with(1, 2))
+        self.assertTrue(obj.do_math_mixed.last_called_with(3))
+        self.assertTrue(obj.do_math_mixed.last_called_with(3, b=4))
+        self.assertFalse(obj.do_math_mixed.last_called_with(3, b=4, c=5))
+        self.assertFalse(obj.do_math_mixed.last_called_with(1, b=2))
 
     def test_last_called_with_and_partial_kwargs(self):
         """Testing FunctionSpy.called_with and partial keyword arguments"""
         obj = MathClass()
-        self.agency.spy_on(obj.do_math)
+        self.agency.spy_on(obj.do_math_mixed)
 
-        obj.do_math(a=1, b=2)
-        obj.do_math(a=3, b=4)
+        obj.do_math_mixed(a=1, b=2)
+        obj.do_math_mixed(a=3, b=4)
 
-        self.assertFalse(obj.do_math.last_called_with(a=1))
-        self.assertFalse(obj.do_math.last_called_with(b=2))
-        self.assertFalse(obj.do_math.last_called_with(a=1, b=2, c=3))
-        self.assertFalse(obj.do_math.last_called_with(a=1, c=3))
-        self.assertTrue(obj.do_math.last_called_with(a=3))
-        self.assertTrue(obj.do_math.last_called_with(b=4))
+        self.assertTrue(obj.do_math_mixed.last_called_with(3))
+        self.assertTrue(obj.do_math_mixed.last_called_with(b=4))
+        self.assertFalse(obj.do_math_mixed.last_called_with(a=1))
+        self.assertFalse(obj.do_math_mixed.last_called_with(b=2))
+        self.assertFalse(obj.do_math_mixed.last_called_with(b=3))
+        self.assertFalse(obj.do_math_mixed.last_called_with(3, 4))
+        self.assertFalse(obj.do_math_mixed.last_called_with(a=1, b=2, c=3))
+        self.assertFalse(obj.do_math_mixed.last_called_with(a=1, c=3))
 
     def test_returned(self):
         """Testing FunctionSpy.returned"""

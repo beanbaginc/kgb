@@ -6,9 +6,9 @@ import sys
 import types
 
 
-pyver = sys.version_info[0]
+pyver = sys.version_info[:2]
 
-if pyver == 2:
+if pyver[0] == 2:
     FUNC_CLOSURE_ATTR = 'func_closure'
     FUNC_CODE_ATTR = 'func_code'
     FUNC_DEFAULTS_ATTR = 'func_defaults'
@@ -198,7 +198,6 @@ class FunctionSpy(object):
         self.func_name = getattr(func, FUNC_NAME_ATTR)
         self.orig_func = func
         self.owner = None
-        self._argspec = None
 
         if hasattr(func, '__func__'):
             # This is an instancemethod on a class. Grab the real function
@@ -208,7 +207,7 @@ class FunctionSpy(object):
             real_func = func
 
         # Determine if this is a method, and if so, what type and what owns it.
-        if pyver == 2 and inspect.ismethod(func):
+        if pyver[0] == 2 and inspect.ismethod(func):
             owner = getattr(func, METHOD_SELF_ATTR)
 
             if owner is None:
@@ -217,7 +216,7 @@ class FunctionSpy(object):
             else:
                 self.func_type = self.TYPE_BOUND_METHOD
                 self.owner = owner
-        elif pyver >= 3:
+        elif pyver[0] >= 3:
             # Python 3 does not officially have unbound methods. Methods on
             # instances are easily identified as types.MethodType, but
             # unbound methods are just standard functions without something
@@ -266,7 +265,7 @@ class FunctionSpy(object):
 
             method_type_args = [real_func, self.owner]
 
-            if pyver >= 3:
+            if pyver[0] >= 3:
                 method_type_args.append(self.owner)
 
             setattr(self.owner, self.func_name,
@@ -360,31 +359,22 @@ class FunctionSpy(object):
         # It's a wonderful bag of tricks that are fully legal, but really
         # dirty. Somehow, it all really fits in with the idea of spies,
         # though.
-        self._argspec = self._get_arg_spec(func)
-
+        argspec = self._get_arg_spec(func)
         exec_locals = {}
 
         exec(
             'def forwarding_call(%(params)s):\n'
-            '    from inspect import currentframe as _kgb_curframe\n'
             '    from kgb.spies import FunctionSpy as _kgb_cls\n'
             ''
-            '    _kgb_frame = _kgb_curframe()\n'
-            '    _kgb_spy = _kgb_cls._spy_map[%(spy_id)s]\n'
-            '    _kgb_locals = locals()\n'
-            ''
-            '    exec("result = _kgb_spy(%%s)"\n'
-            '         %% _kgb_spy._format_call_args(_kgb_frame),\n'
-            '         {}, _kgb_locals)\n'
-            '    return _kgb_locals["result"]\n'
+            '    return _kgb_cls._spy_map[%(spy_id)s](%(call_args)s)\n'
             % {
-                'params': self._format_arg_spec(),
+                'params': self._format_arg_spec(argspec),
+                'call_args': self._format_call_args(argspec),
                 'spy_id': id(self),
             },
             globals(), exec_locals)
 
         forwarding_call = exec_locals['forwarding_call']
-
         assert forwarding_call is not None
 
         self._old_code = getattr(func, FUNC_CODE_ATTR)
@@ -392,7 +382,7 @@ class FunctionSpy(object):
 
         code_args = [temp_code.co_argcount]
 
-        if pyver >= 3:
+        if pyver[0] >= 3:
             code_args.append(temp_code.co_kwonlyargcount)
 
         code_args += [
@@ -756,78 +746,45 @@ class FunctionSpy(object):
         return '<Spy for %s %s (%d %s)>' % (func_type_str, qualname,
                                             len(self.calls), calls_str)
 
-    def _get_caller_pos_arg_counts(self, caller_frame):
-        """Return the number of positional arguments from a caller.
-
-        This will find out how many positional arguments were
-        passed by the caller of a function. It does this by inspecting the
-        bytecode of the call, which contains counts for the numbers of both
-        types of arguments. For our usage, we only need the positional count.
-
-        Args:
-            caller_frame (frame):
-                The latest frame of the caller of a function.
-
-        Returns:
-            int:
-            The number of positional arguments.
-        """
-        num_args = caller_frame.f_code.co_code[caller_frame.f_lasti + 1]
-
-        if pyver == 2:
-            # In Python 2, this is represented as a character instead of an
-            # integer.
-            num_args = ord(num_args)
-
-        if self.func_type in (self.TYPE_BOUND_METHOD,
-                              self.TYPE_UNBOUND_METHOD):
-            # The argument list is going to implicitly include "self", which
-            # won't be shown as a positional argument in the frame above. We
-            # have to manually factor this in here.
-            num_args += 1
-
-        return num_args
-
-    def _format_call_args(self, frame):
+    def _format_call_args(self, argspec):
         """Format arguments to pass in for forwarding a call.
 
-        This takes the frame of the function being called and builds a string
-        representing the positional and keyword arguments to pass in to a
-        forwarded function. It does this by retrieving the number of
-        positional and keyword arguments made when calling the forwarding
-        function, figuring out which positional and keyword arguments those
-        represent, and passing in the equivalent arguments in the forwarding
-        call for use in the forwarded call.
+        This will build a string for use in the forwarding call, which will
+        pass every positional and keyword parameter defined for the function
+        to forwarded function, along with the ``*args`` and ``**kwargs``,
+        if specified.
 
         Args:
-            frame (frame):
-                The latest frame of the forwarding function.
+            argspec (dict):
+                The argument specification for the function to call.
 
         Returns:
-            bytes:
+            unicode:
             A string representing the arguments to pass when forwarding a call.
         """
-        num_pos_args = self._get_caller_pos_arg_counts(frame.f_back)
-        argspec = self._argspec
-        func_args = argspec['args']
-        f_locals = frame.f_locals
+        # Build the list of positional and keyword arguments.
+        pos_args = argspec['args']
+        keyword_args = argspec.get('kwonly_args', [])
 
-        keyword_args = func_args[num_pos_args:]
+        if pos_args and argspec['defaults']:
+            num_defaults = len(argspec['defaults'])
+            keyword_args = pos_args[-num_defaults:]
+            pos_args = pos_args[:-num_defaults]
 
-        if pyver >= 3:
-            keyword_args += argspec['kwonly_args']
-
-        result = func_args[:num_pos_args] + [
+        result = pos_args + [
             '%s=%s' % (arg_name, arg_name)
             for arg_name in keyword_args
-            if f_locals[arg_name] is not _UNSET_ARG
         ]
 
-        if argspec['args_name']:
-            result.append('*%s' % argspec['args_name'])
+        # Add the variable arguments.
+        args_name = argspec['args_name']
+        kwargs_name = argspec['kwargs_name']
 
-        if argspec['kwargs_name']:
-            result.append('**%s' % argspec['kwargs_name'])
+        if args_name:
+            result.append('*%s' % args_name)
+
+        if kwargs_name:
+            result.append('**%s' % kwargs_name)
 
         return ', '.join(result)
 
@@ -849,7 +806,7 @@ class FunctionSpy(object):
             dict:
             A dictionary of information on the function.
         """
-        if pyver == 2:
+        if pyver[0] == 2:
             argspec = inspect.getargspec(func)
 
             return {
@@ -870,7 +827,7 @@ class FunctionSpy(object):
                 'kwonly_defaults': argspec.kwonlydefaults,
             }
 
-    def _format_arg_spec(self):
+    def _format_arg_spec(self, argspec):
         """Format the spied function's arguments for a new function definition.
 
         This will build a list of parameters for a function definition based on
@@ -878,11 +835,14 @@ class FunctionSpy(object):
         This consists of positional arguments, keyword arguments, and
         keyword-only arguments.
 
+        Args:
+            argspec (dict):
+                The argument specification for the function.
+
         Returns:
             unicode:
             A string representing an argument list for a function definition.
         """
-        argspec = self._argspec
         kwargs = {
             'args': argspec['args'],
             'varargs': argspec['args_name'],
@@ -891,7 +851,7 @@ class FunctionSpy(object):
             'formatvalue': lambda value: '=_UNSET_ARG',
         }
 
-        if pyver >= 3:
+        if pyver[0] >= 3:
             kwargs.update({
                 'kwonlyargs': argspec['kwonly_args'],
                 'kwonlydefaults': argspec['kwonly_defaults'],

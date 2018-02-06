@@ -36,10 +36,15 @@ from kgb import get_package_version
 PACKAGE_NAME = 'kgb'
 
 
+with open('README.rst', 'r') as fp:
+    readme = fp.read()
+
+
 setup(name=PACKAGE_NAME,
       version=get_package_version(),
       license='MIT',
       description='Utilities for spying on function calls in unit tests.',
+      long_description=readme,
       url='https://github.com/beanbaginc/kgb',
       packages=find_packages(),
       maintainer='Christian Hammond',

@@ -1,3 +1,24 @@
+version 2.0 final (5-February-2018):
+	* Added compatibility with Python 3.6.
+
+	* Spy methods for standard functions no longer need to be accessed like:
+
+	      func.spy.last_call
+
+	  Now you can call them the same way you could with methods:
+
+	      func.last_call
+
+	* The args and kwargs information recorded for a spy now correspond to
+	  the function signature and not the way the function was called.
+
+	* called_with() now allows providing keyword arguments to check positional
+	  arguments by name.
+
+	* When spying on a function fails for some reason, the error output is a
+	  lot more helpful.
+
+
 version 1.1 final (5-December-2017):
 	* Added returned(), last_returned(), raised(), last_raised(),
 	  raised_with_message(), and last_raised_with_message() methods to

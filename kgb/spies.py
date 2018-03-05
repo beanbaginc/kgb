@@ -314,13 +314,7 @@ class FunctionSpy(object):
             # re-assign it to the instance. We do this in order to
             # prevent two spies on the same function on two separate
             # instances of the class from conflicting with each other.
-            real_func = types.FunctionType(
-                getattr(real_func, FUNC_CODE_ATTR),
-                getattr(real_func, FUNC_GLOBALS_ATTR),
-                self.func_name,
-                getattr(real_func, FUNC_DEFAULTS_ATTR),
-                getattr(real_func, FUNC_CLOSURE_ATTR))
-
+            real_func = self._clone_function(real_func)
             method_type_args = [real_func, self.owner]
 
             if pyver[0] >= 3:
@@ -491,12 +485,8 @@ class FunctionSpy(object):
             # to replace what we're calling with something that acts
             # like the original function. Otherwise, we'll just call
             # the forwarding_call above in an infinite loop.
-            self.func = types.FunctionType(
-                self._old_code,
-                getattr(self.func, FUNC_GLOBALS_ATTR),
-                self.func_name,
-                getattr(self.func, FUNC_DEFAULTS_ATTR),
-                getattr(self.func, FUNC_CLOSURE_ATTR))
+            self.func = self._clone_function(self.func,
+                                             code=self._old_code)
 
     @property
     def called(self):
@@ -818,6 +808,40 @@ class FunctionSpy(object):
 
         return '<Spy for %s %s (%d %s)>' % (func_type_str, qualname,
                                             len(self.calls), calls_str)
+
+    def _clone_function(self, func, code=None):
+        """Clone a function, optionally providing new bytecode.
+
+        This will create a new function that contains all the state of the
+        original (including annotations and any default argument values).
+
+        Args:
+            func (types.FunctionType):
+                The function to clone.
+
+            code (types.CodeType, optional):
+                The new bytecode for the function. If not specified, the
+                original function's bytecode will be used.
+
+        Returns:
+            types.FunctionType:
+            The new function.
+        """
+        cloned_func = types.FunctionType(
+            code or getattr(func, FUNC_CODE_ATTR),
+            getattr(func, FUNC_GLOBALS_ATTR),
+            getattr(func, FUNC_NAME_ATTR),
+            getattr(func, FUNC_DEFAULTS_ATTR),
+            getattr(func, FUNC_CLOSURE_ATTR))
+
+        if pyver[0] >= 3:
+            # Python 3.x doesn't support providing any of the new
+            # metadata introduced in Python 3.x to the constructor of
+            # FunctionType. We have to set those manually.
+            for attr in ('__annotations__', '__kwdefaults__'):
+                setattr(cloned_func, attr, copy.deepcopy(getattr(func, attr)))
+
+        return cloned_func
 
     def _format_call_args(self, argspec):
         """Format arguments to pass in for forwarding a call.

@@ -36,6 +36,22 @@ def fake_something_awesome():
     return '\o/'
 
 
+class AdderObject(object):
+    def func(self):
+        return [self.add_one(i) for i in (1, 2, 3)]
+
+    def add_one(self, i):
+        return i + 1
+
+    @classmethod
+    def class_func(cls):
+        return [cls.class_add_one(i) for i in (1, 2, 3)]
+
+    @classmethod
+    def class_add_one(cls, i):
+        return i + 1
+
+
 class FunctionSpyTests(TestCase):
     """Test cases for kgb.spies.FunctionSpy."""
 
@@ -684,6 +700,73 @@ class FunctionSpyTests(TestCase):
             'a': 10,
             'b': 20
         })
+
+    def test_call_with_inline_function_using_closure_vars(self):
+        """Testing FunctionSpy calls for inline function using a closure's
+        variables
+        """
+        d = {}
+
+        def func():
+            d['called'] = True
+
+        self.agency.spy_on(func)
+
+        func()
+        self.assertTrue(func.called)
+        self.assertEqual(d, {'called': True})
+
+    def test_call_with_function_providing_closure_vars(self):
+        """Testing FunctionSpy calls for function providing variables for an
+        inline function
+        """
+        def func():
+            d = {}
+
+            def inline_func():
+                d['called'] = True
+
+            inline_func()
+
+            return d
+
+        self.agency.spy_on(func)
+
+        d = func()
+        self.assertTrue(func.called)
+        self.assertEqual(d, {'called': True})
+
+    def test_call_with_bound_method_with_list_comprehension_and_self(self):
+        """Testing FunctionSpy calls for bound method using a list
+        comprehension referencing 'self'
+        """
+        obj = AdderObject()
+        self.agency.spy_on(obj.func)
+
+        result = obj.func()
+        self.assertTrue(obj.func.called)
+        self.assertEqual(result, [2, 3, 4])
+
+    def test_call_with_unbound_method_with_list_comprehension_and_self(self):
+        """Testing FunctionSpy calls for unbound method using a list
+        comprehension referencing 'self'
+        """
+        self.agency.spy_on(AdderObject.func)
+
+        obj = AdderObject()
+        result = obj.func()
+        self.assertTrue(obj.func.called)
+        self.assertEqual(result, [2, 3, 4])
+
+    def test_call_with_classmethod_with_list_comprehension_and_self(self):
+        """Testing FunctionSpy calls for classmethod using a list
+        comprehension referencing 'cls'
+        """
+        self.agency.spy_on(AdderObject.class_func)
+
+        result = AdderObject.class_func()
+        self.assertTrue(AdderObject.class_func.called)
+        self.assertEqual(result, [2, 3, 4])
 
     def test_called(self):
         """Testing FunctionSpy.called"""

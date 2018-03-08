@@ -309,7 +309,8 @@ class FunctionSpy(object):
                     self.func_type = self.TYPE_UNBOUND_METHOD
                     self.owner = owner
 
-        if self.owner is not None:
+        if (self.owner is not None and
+            self.func_type == self.TYPE_BOUND_METHOD):
             # Construct a replacement function for this method, and
             # re-assign it to the instance. We do this in order to
             # prevent two spies on the same function on two separate
@@ -432,6 +433,7 @@ class FunctionSpy(object):
         exec(
             'def forwarding_call(%(params)s):\n'
             '    from kgb.spies import FunctionSpy as _kgb_cls\n'
+            '    _kgb_l = locals()\n'
             ''
             '    return _kgb_cls._spy_map[%(spy_id)s](%(call_args)s)\n'
             % {
@@ -859,9 +861,29 @@ class FunctionSpy(object):
             unicode:
             A string representing the arguments to pass when forwarding a call.
         """
+        if pyver[0] == 3:
+            # Starting in Python 3, something changed with variables. Due to
+            # the way we generate the hybrid code object, we can't always
+            # reference the local variables directly. Sometimes we can, but
+            # other times we have to get them from locals(). We can't always
+            # get them from there, though, so instead we conditionally check
+            # both.
+            def _format_arg(arg_name):
+                return (
+                    '_kgb_l["%(arg)s"] if "%(arg)s" in _kgb_l else %(arg)s'
+                    % {
+                        'arg': arg_name,
+                    })
+        else:
+            def _format_arg(arg_name):
+                return arg_name
+
         # Build the list of positional and keyword arguments.
-        result = argspec['args'] + [
-            '%s=%s' % (arg_name, arg_name)
+        result = [
+            _format_arg(arg_name)
+            for arg_name in argspec['args']
+        ] + [
+            '%s=%s' % (arg_name, _format_arg(arg_name))
             for arg_name in argspec['kwargs']
         ]
 
@@ -870,10 +892,10 @@ class FunctionSpy(object):
         kwargs_name = argspec['kwargs_name']
 
         if args_name:
-            result.append('*%s' % args_name)
+            result.append('*%s' % _format_arg(args_name))
 
         if kwargs_name:
-            result.append('**%s' % kwargs_name)
+            result.append('**%s' % _format_arg(kwargs_name))
 
         return ', '.join(result)
 

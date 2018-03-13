@@ -79,10 +79,12 @@ class FunctionSpyTests(TestCase):
     def test_construction_with_call_fake_and_bound_method(self):
         """Testing FunctionSpy construction with call_fake and bound method"""
         obj = MathClass()
+        orig_method = obj.do_math
         spy = self.agency.spy_on(obj.do_math, call_fake=fake_do_math)
 
         self.assertTrue(hasattr(obj.do_math, 'spy'))
         self.assertIs(obj.do_math.spy, spy)
+        self.assertIsNot(obj.do_math, orig_method)
         self.assertFalse(hasattr(MathClass.do_math, 'spy'))
 
         self.assertEqual(spy.func, fake_do_math)
@@ -93,6 +95,7 @@ class FunctionSpyTests(TestCase):
     def test_construction_with_call_fake_and_unbound_method(self):
         """Testing FunctionSpy construction with call_fake and unbound method
         """
+        orig_method = MathClass.do_math
         spy = self.agency.spy_on(MathClass.do_math, call_fake=fake_do_math)
 
         self.assertTrue(hasattr(MathClass.do_math, 'spy'))
@@ -101,6 +104,15 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(spy.func_name, 'do_math')
         self.assertEqual(spy.func_type, spy.TYPE_UNBOUND_METHOD)
         self.assertEqual(spy.owner, MathClass)
+
+        if isinstance(orig_method, types.FunctionType):
+            # Python 3
+            self.assertIs(MathClass.do_math, orig_method)
+        elif isinstance(orig_method, types.MethodType):
+            # Python 2
+            self.assertIsNot(MathClass.do_math, orig_method)
+        else:
+            self.fail('Method has an unexpected type %r' % type(orig_method))
 
         obj = MathClass()
         self.assertTrue(hasattr(obj.do_math, 'spy'))
@@ -112,11 +124,13 @@ class FunctionSpyTests(TestCase):
         def fake_class_do_math(cls, *args, **kwargs):
             return 42
 
+        orig_method = MathClass.class_do_math
         spy = self.agency.spy_on(MathClass.class_do_math,
                                  call_fake=fake_class_do_math)
 
         self.assertTrue(hasattr(MathClass.class_do_math, 'spy'))
         self.assertIs(MathClass.class_do_math.spy, spy)
+        self.assertIs(MathClass.class_do_math, orig_method)
 
         self.assertEqual(spy.func, fake_class_do_math)
         self.assertEqual(spy.orig_func, self.orig_class_do_math)

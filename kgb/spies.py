@@ -310,7 +310,8 @@ class FunctionSpy(object):
                     self.owner = owner
 
         if (self.owner is not None and
-            self.func_type == self.TYPE_BOUND_METHOD):
+            self.func_type == self.TYPE_BOUND_METHOD and
+            not inspect.isclass(self.owner)):
             # Construct a replacement function for this method, and
             # re-assign it to the instance. We do this in order to
             # prevent two spies on the same function on two separate

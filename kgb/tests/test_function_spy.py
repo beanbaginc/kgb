@@ -265,6 +265,32 @@ class FunctionSpyTests(TestCase):
 
         self.assertIn(', in setup_spy', text_type(cm.exception))
 
+    def test_construction_with_bound_method_and_custom_setattr(self):
+        """Testing FunctionSpy constructions with a bound method on a class
+        containing a custom __setattr__
+        """
+        class MyObject(object):
+            def __setattr__(self, key, value):
+                assert False
+
+            def foo(self):
+                pass
+
+        obj = MyObject()
+        orig_foo = obj.foo
+
+        spy = self.agency.spy_on(obj.foo)
+        self.assertEqual(spy.orig_func, orig_foo)
+        self.assertNotEqual(MyObject.foo, spy)
+        self.assertEqual(spy.func_name, 'foo')
+        self.assertEqual(spy.func_type, spy.TYPE_BOUND_METHOD)
+        self.assertIsInstance(obj.foo, types.MethodType)
+        self.assertTrue(hasattr(obj.foo, 'spy'))
+        self.assertTrue(hasattr(obj.foo, 'called_with'))
+
+        obj2 = MyObject()
+        self.assertFalse(hasattr(obj2.foo, 'spy'))
+
     def test_construction_with_non_function(self):
         """Testing FunctionSpy constructions with non-function"""
         with self.assertRaises(ValueError) as cm:
@@ -882,6 +908,26 @@ class FunctionSpyTests(TestCase):
 
         spy.unspy()
         self.assertEqual(obj.do_math.__dict__, func_dict)
+
+    def test_unspy_with_bound_method_and_custom_setattr(self):
+        """Testing FunctionSpy.unspy with a bound method on a class containing
+        a custom __setattr__
+        """
+        class MyObject(object):
+            def __setattr__(self, key, value):
+                assert False
+
+            def foo(self):
+                pass
+
+        obj = MyObject()
+        func_dict = obj.foo.__dict__.copy()
+
+        spy = self.agency.spy_on(obj.foo)
+        self.assertNotEqual(obj.foo.__dict__, func_dict)
+
+        spy.unspy()
+        self.assertEqual(obj.foo.__dict__, func_dict)
 
     def test_unspy_and_unbound_method(self):
         """Testing FunctionSpy.unspy and unbound method"""

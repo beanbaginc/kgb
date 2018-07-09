@@ -328,8 +328,8 @@ class FunctionSpy(object):
             if pyver[0] >= 3:
                 method_type_args.append(self.owner)
 
-            setattr(self.owner, self.func_name,
-                    types.MethodType(real_func, self.owner))
+            self._set_method(self.owner, self.func_name,
+                             types.MethodType(real_func, self.owner))
 
         self._real_func = real_func
 
@@ -552,7 +552,7 @@ class FunctionSpy(object):
         setattr(self._real_func, FUNC_CODE_ATTR, self._old_code)
 
         if self.owner is not None:
-            setattr(self.owner, self.func_name, self.orig_func)
+            self._set_method(self.owner, self.func_name, self.orig_func)
 
         if unregister:
             self.agency.spies.remove(self)
@@ -851,6 +851,30 @@ class FunctionSpy(object):
                 setattr(cloned_func, attr, copy.deepcopy(getattr(func, attr)))
 
         return cloned_func
+
+    def _set_method(self, owner, name, method):
+        """Set a new method on an object.
+
+        This will set the method using a standard :py:func:`setattr` if
+        working on a class, or using :py:meth:`object.__setattr__` if working
+        on an instance (in order to avoid triggering a subclass-defined version
+        of :py:meth:`~object.__setattr__`, which might lose or override our
+        spy).
+
+        Args:
+            owner (type or object):
+                The class or instance to set the method on.
+
+            name (unicode):
+                The name of the attribute to set for the method.
+
+            method (types.MethodType):
+                The method to set.
+        """
+        if inspect.isclass(owner):
+            setattr(owner, name, method)
+        else:
+            object.__setattr__(owner, name, method)
 
     def _format_call_args(self, argspec):
         """Format arguments to pass in for forwarding a call.

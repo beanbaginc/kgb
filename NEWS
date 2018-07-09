@@ -1,3 +1,9 @@
+version 2.0.2 final (9-July-2018):
+	* Fixed spying on instances of classes with a custom __setattr__.
+
+	* Fixed spying on classmethods defined in the parent of a class.
+
+
 version 2.0.1 final (12-March-2018):
 	* Fixed a regression in spying on classmethods.
 

@@ -192,6 +192,47 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(spy.func_type, spy.TYPE_BOUND_METHOD)
         self.assertIsInstance(MathClass.class_do_math, types.MethodType)
 
+    def test_construction_with_classmethod_on_parent(self):
+        """Testing FunctionSpy construction with classmethod from parent of
+        class
+        """
+        class MyParent(object):
+            @classmethod
+            def foo(self):
+                pass
+
+        class MyObject(MyParent):
+            pass
+
+        obj = MyObject()
+        orig_method = obj.foo
+
+        spy = self.agency.spy_on(MyObject.foo)
+
+        self.assertTrue(hasattr(MyObject.foo, 'spy'))
+        self.assertFalse(hasattr(MyParent.foo, 'spy'))
+        self.assertIs(MyObject.foo.spy, spy)
+        self.assertEqual(spy.func_name, 'foo')
+        self.assertEqual(spy.func_type, spy.TYPE_BOUND_METHOD)
+        self.assertEqual(spy.owner, MyObject)
+
+        if isinstance(orig_method, types.FunctionType):
+            # Python 3
+            self.assertIs(MyObject.foo, orig_method)
+        elif isinstance(orig_method, types.MethodType):
+            # Python 2
+            self.assertIsNot(MyObject.foo, orig_method)
+        else:
+            self.fail('Method has an unexpected type %r' % type(orig_method))
+
+        obj2 = MyObject()
+        self.assertTrue(hasattr(obj2.foo, 'spy'))
+        self.assertIs(obj2.foo.spy, MyObject.foo.spy)
+        self.assertIsInstance(obj2.foo, types.MethodType)
+
+        obj3 = MyParent()
+        self.assertFalse(hasattr(obj3.foo, 'spy'))
+
     def test_construction_with_falsy_im_self(self):
         """Testing FunctionSpy construction with a falsy function.im_self"""
         class MyObject(dict):
@@ -861,6 +902,27 @@ class FunctionSpyTests(TestCase):
 
         spy.unspy()
         self.assertEqual(MathClass.class_do_math.__dict__, func_dict)
+
+    def test_unspy_with_classmethod_on_parent(self):
+        """Testing FunctionSpy.unspy with classmethod on parent class"""
+        class MyParent(object):
+            @classmethod
+            def foo(self):
+                pass
+
+        class MyObject(MyParent):
+            pass
+
+        parent_func_dict = MyParent.foo.__dict__.copy()
+        obj_func_dict = MyObject.foo.__dict__.copy()
+
+        spy = self.agency.spy_on(MyObject.foo)
+        self.assertNotEqual(MyObject.foo.__dict__, obj_func_dict)
+        self.assertEqual(MyParent.foo.__dict__, parent_func_dict)
+
+        spy.unspy()
+        self.assertEqual(MyObject.foo.__dict__, obj_func_dict)
+        self.assertEqual(MyParent.foo.__dict__, parent_func_dict)
 
     def test_called_with(self):
         """Testing FunctionSpy.called_with"""

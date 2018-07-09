@@ -311,11 +311,17 @@ class FunctionSpy(object):
 
         if (self.owner is not None and
             self.func_type == self.TYPE_BOUND_METHOD and
-            not inspect.isclass(self.owner)):
+            (not inspect.isclass(self.owner) or
+             any(
+                inspect.isclass(parent_cls) and
+                hasattr(parent_cls, self.func_name)
+                for parent_cls in self.owner.__bases__
+             ))):
             # Construct a replacement function for this method, and
-            # re-assign it to the instance. We do this in order to
-            # prevent two spies on the same function on two separate
-            # instances of the class from conflicting with each other.
+            # re-assign it to the owner. We do this in order to prevent
+            # two spies on the same method on two separate instances
+            # of the class, or two subclasses of a common class owning the
+            # method from conflicting with each other.
             real_func = self._clone_function(real_func)
             method_type_args = [real_func, self.owner]
 

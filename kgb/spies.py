@@ -437,17 +437,18 @@ class FunctionSpy(object):
         # though.
         exec_locals = {}
 
-        exec(
-            'def forwarding_call(%(params)s):\n'
-            '    from kgb.spies import FunctionSpy as _kgb_cls\n'
-            '    _kgb_l = locals()\n'
-            ''
-            '    return _kgb_cls._spy_map[%(spy_id)s](%(call_args)s)\n'
-            % {
-                'params': self._format_arg_spec(self.argspec),
-                'call_args': self._format_call_args(self.argspec),
-                'spy_id': id(self),
-            },
+        eval(
+            compile(
+                'def forwarding_call(%(params)s):\n'
+                '    from kgb.spies import FunctionSpy as _kgb_cls\n'
+                '    _kgb_l = locals()\n'
+                ''
+                '    return _kgb_cls._spy_map[%(spy_id)s](%(call_args)s)\n'
+                % {
+                    'params': self._format_arg_spec(self.argspec),
+                    'call_args': self._format_call_args(self.argspec),
+                    'spy_id': id(self),
+                }, '<string>', 'exec'),
             globals(), exec_locals)
 
         forwarding_call = exec_locals['forwarding_call']

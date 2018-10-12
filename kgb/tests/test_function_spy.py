@@ -381,6 +381,17 @@ class FunctionSpyTests(TestCase):
         self.agency.spy_on(source4, call_fake=lambda **kwargs: None)
         source4.unspy()
 
+    def test_construction_with_old_style_class(self):
+        """Testing FunctionSpy with old-style class"""
+        class MyClass:
+            def test_func(self):
+                return 100
+
+        obj = MyClass()
+
+        self.agency.spy_on(obj.test_func, call_fake=lambda obj: 200)
+        self.assertEqual(obj.test_func(), 200)
+
     def test_call_with_fake(self):
         """Testing FunctionSpy calls with call_fake"""
         self.agency.spy_on(something_awesome,

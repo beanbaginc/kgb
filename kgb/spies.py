@@ -875,7 +875,15 @@ class FunctionSpy(object):
         if inspect.isclass(owner):
             setattr(owner, name, method)
         else:
-            object.__setattr__(owner, name, method)
+            try:
+                object.__setattr__(owner, name, method)
+            except TypeError as e:
+                if str(e) == "can't apply this __setattr__ to instance object":
+                    # This is likely Python 2.6, or early 2.7, where we can't
+                    # run object.__setattr__ on old-style classes. We have to
+                    # fall back to modifying __dict__. It's not ideal but
+                    # doable.
+                    owner.__dict__[name] = method
 
     def _format_call_args(self, argspec):
         """Format arguments to pass in for forwarding a call.

@@ -52,6 +52,10 @@ class AdderObject(object):
         return i + 1
 
 
+class AdderSubclass(AdderObject):
+    pass
+
+
 class FunctionSpyTests(TestCase):
     """Test cases for kgb.spies.FunctionSpy."""
 
@@ -241,6 +245,39 @@ class FunctionSpyTests(TestCase):
 
         obj3 = MyParent()
         self.assertFalse(hasattr(obj3.foo, 'spy'))
+
+    def test_construction_with_unbound_method_on_parent(self):
+        """Testing FunctionSpy construction with unbound method from parent of
+        class
+        """
+        obj = AdderSubclass()
+        orig_method = obj.func
+
+        spy = self.agency.spy_on(AdderSubclass.func, owner=AdderSubclass)
+
+        self.assertTrue(hasattr(AdderSubclass.func, 'spy'))
+        self.assertFalse(hasattr(AdderObject.func, 'spy'))
+        self.assertIs(AdderSubclass.func.spy, spy)
+        self.assertEqual(spy.func_name, 'func')
+        self.assertEqual(spy.func_type, spy.TYPE_UNBOUND_METHOD)
+        self.assertEqual(spy.owner, AdderSubclass)
+
+        if isinstance(orig_method, types.FunctionType):
+            # Python 3
+            self.assertIs(AdderSubclass.func, orig_method)
+        elif isinstance(orig_method, types.MethodType):
+            # Python 2
+            self.assertIsNot(AdderSubclass.func, orig_method)
+        else:
+            self.fail('Method has an unexpected type %r' % type(orig_method))
+
+        obj2 = AdderSubclass()
+        self.assertTrue(hasattr(obj2.func, 'spy'))
+        self.assertIs(obj2.func.spy, AdderSubclass.func.spy)
+        self.assertIsInstance(obj2.func, types.MethodType)
+
+        obj3 = AdderObject()
+        self.assertFalse(hasattr(obj3.func, 'spy'))
 
     def test_construction_with_falsy_im_self(self):
         """Testing FunctionSpy construction with a falsy function.im_self"""
@@ -1020,6 +1057,26 @@ class FunctionSpyTests(TestCase):
         obj_func_dict = MyObject.foo.__dict__.copy()
 
         spy = self.agency.spy_on(MyObject.foo)
+        self.assertNotEqual(MyObject.foo.__dict__, obj_func_dict)
+        self.assertEqual(MyParent.foo.__dict__, parent_func_dict)
+
+        spy.unspy()
+        self.assertEqual(MyObject.foo.__dict__, obj_func_dict)
+        self.assertEqual(MyParent.foo.__dict__, parent_func_dict)
+
+    def test_unspy_with_unbound_method_on_parent(self):
+        """Testing FunctionSpy.unspy with unbound method on parent class"""
+        class MyParent(object):
+            def foo(self):
+                pass
+
+        class MyObject(MyParent):
+            pass
+
+        parent_func_dict = MyParent.foo.__dict__.copy()
+        obj_func_dict = MyObject.foo.__dict__.copy()
+
+        spy = self.agency.spy_on(MyObject.foo, owner=MyObject)
         self.assertNotEqual(MyObject.foo.__dict__, obj_func_dict)
         self.assertEqual(MyParent.foo.__dict__, parent_func_dict)
 

@@ -353,7 +353,6 @@ class FunctionSpy(object):
                         'the bound method.')
 
         if (self.owner is not None and
-            self.func_type == self.TYPE_BOUND_METHOD and
             (not inspect.isclass(self.owner) or
              any(
                 inspect.isclass(parent_cls) and
@@ -366,13 +365,17 @@ class FunctionSpy(object):
             # of the class, or two subclasses of a common class owning the
             # method from conflicting with each other.
             real_func = self._clone_function(real_func)
-            method_type_args = [real_func, self.owner]
 
-            if pyver[0] >= 3:
-                method_type_args.append(self.owner)
+            if self.func_type == self.TYPE_BOUND_METHOD:
+                method_type_args = [real_func, self.owner]
 
-            self._set_method(self.owner, self.func_name,
-                             types.MethodType(real_func, self.owner))
+                if pyver[0] >= 3:
+                    method_type_args.append(self.owner)
+
+                self._set_method(self.owner, self.func_name,
+                                 types.MethodType(real_func, self.owner))
+            else:
+                self._set_method(self.owner, self.func_name, real_func)
 
         self._real_func = real_func
 

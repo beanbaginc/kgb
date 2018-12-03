@@ -2,10 +2,14 @@ from __future__ import absolute_import, unicode_literals
 
 import copy
 import inspect
+import logging
 import sys
 import types
 
 from kgb.errors import ExistingSpyError, IncompatibleFunctionError
+
+
+logger = logging.getLogger('kgb')
 
 
 pyver = sys.version_info[:2]
@@ -213,7 +217,8 @@ class FunctionSpy(object):
 
     _spy_map = {}
 
-    def __init__(self, agency, func, call_fake=None, call_original=True):
+    def __init__(self, agency, func, call_fake=None, call_original=True,
+                 owner=_UNSET_ARG):
         """Initialize the spy.
 
         This will begin spying on the provided function or method, injecting
@@ -266,14 +271,21 @@ class FunctionSpy(object):
 
         # Determine if this is a method, and if so, what type and what owns it.
         if pyver[0] == 2 and inspect.ismethod(func):
-            owner = getattr(func, METHOD_SELF_ATTR)
+            method_owner = getattr(func, METHOD_SELF_ATTR)
 
-            if owner is None:
+            if method_owner is None:
                 self.func_type = self.TYPE_UNBOUND_METHOD
                 self.owner = func.im_class
+
+                if owner is _UNSET_ARG:
+                    logger.warning('Unbound method owners can easily be '
+                                   'determined on Python 2.x, but not on '
+                                   '3.x. Please pass owner= to spy_on() '
+                                   'to set a specific owner for %r.',
+                                   func)
             else:
                 self.func_type = self.TYPE_BOUND_METHOD
-                self.owner = owner
+                self.owner = method_owner
         elif pyver[0] >= 3:
             # Python 3 does not officially have unbound methods. Methods on
             # instances are easily identified as types.MethodType, but
@@ -294,20 +306,51 @@ class FunctionSpy(object):
             if inspect.ismethod(func):
                 self.func_type = self.TYPE_BOUND_METHOD
                 self.owner = getattr(func, METHOD_SELF_ATTR)
-            elif ('.' in func.__qualname__ and
-                  '<locals>' not in func.__qualname__):
-                owner = inspect.getmodule(real_func)
-
-                for part in real_func.__qualname__.split('.')[:-1]:
-                    try:
-                        owner = getattr(owner, part)
-                    except AttributeError:
-                        owner = None
-                        break
-
-                if owner is not None:
-                    self.func_type = self.TYPE_UNBOUND_METHOD
+            elif '.' in func.__qualname__:
+                if owner is not _UNSET_ARG:
                     self.owner = owner
+                    self.func_type = self.TYPE_UNBOUND_METHOD
+                elif '<locals>' in func.__qualname__:
+                    # We can only assume this is a function. It might not be.
+                    self.func_type = self.TYPE_FUNCTION
+                else:
+                    method_owner = inspect.getmodule(real_func)
+
+                    for part in real_func.__qualname__.split('.')[:-1]:
+                        try:
+                            method_owner = getattr(method_owner, part)
+                        except AttributeError:
+                            method_owner = None
+                            break
+
+                    if method_owner is not None:
+                        self.func_type = self.TYPE_UNBOUND_METHOD
+                        self.owner = method_owner
+
+                    logger.warning('Determined the owner of %r to be %r, '
+                                   'but it may be wrong. Please pass '
+                                   'owner= to spy_on() to set a specific '
+                                   'owner.',
+                                   func, self.owner)
+
+        # If the caller passed an explicit owner, check to see if it's at all
+        # valid. Note that it may have been handled above (for unbound
+        # methods).
+        if owner is not _UNSET_ARG and owner is not self.owner:
+            if self.func_type == self.TYPE_FUNCTION:
+                raise ValueError(
+                    'This function has no owner, but an owner was passed '
+                    'to spy_on().')
+            else:
+                if not hasattr(owner, self.func_name):
+                    raise ValueError('The owner passed does not contain the '
+                                     'spied method.')
+                elif (self.func_type == self.TYPE_BOUND_METHOD or
+                      (pyver[0] == 2 and
+                       self.func_type == self.TYPE_UNBOUND_METHOD)):
+                    raise ValueError(
+                        'The owner passed does not match the actual owner of '
+                        'the bound method.')
 
         if (self.owner is not None and
             self.func_type == self.TYPE_BOUND_METHOD and

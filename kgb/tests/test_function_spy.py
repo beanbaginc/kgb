@@ -192,6 +192,15 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(spy.func_type, spy.TYPE_BOUND_METHOD)
         self.assertIsInstance(MathClass.class_do_math, types.MethodType)
 
+    def test_construction_with_function_and_owner(self):
+        """Testing FunctionSpy constructions with function and owner passed"""
+        with self.assertRaises(ValueError) as cm:
+            self.agency.spy_on(do_math, owner=AdderObject)
+
+        self.assertEqual(text_type(cm.exception),
+                         'This function has no owner, but an owner was '
+                         'passed to spy_on().')
+
     def test_construction_with_classmethod_on_parent(self):
         """Testing FunctionSpy construction with classmethod from parent of
         class
@@ -290,6 +299,43 @@ class FunctionSpyTests(TestCase):
 
         obj2 = MyObject()
         self.assertFalse(hasattr(obj2.foo, 'spy'))
+
+    def test_construction_with_bound_method_and_bad_owner(self):
+        """Testing FunctionSpy constructions with a bound method and an
+        explicit owner not matching the class
+        """
+        class MyObject(object):
+            def foo(self):
+                pass
+
+        class BadObject(object):
+            def foo(self):
+                pass
+
+        obj = MyObject()
+
+        with self.assertRaises(ValueError) as cm:
+            self.agency.spy_on(obj.foo, owner=BadObject)
+
+        self.assertEqual(text_type(cm.exception),
+                         'The owner passed does not match the actual owner '
+                         'of the bound method.')
+
+    def test_construction_with_owner_without_method(self):
+        """Testing FunctionSpy constructions with an owner passed that does
+        not provide the spied method
+        """
+        class MyObject(object):
+            def foo(self):
+                pass
+
+        obj = MyObject()
+
+        with self.assertRaises(ValueError) as cm:
+            self.agency.spy_on(obj.foo, owner=AdderObject)
+
+        self.assertEqual(text_type(cm.exception),
+                         'The owner passed does not contain the spied method.')
 
     def test_construction_with_non_function(self):
         """Testing FunctionSpy constructions with non-function"""

@@ -1,3 +1,24 @@
+version 3.0 final (23-March-2019):
+	* Added an argument to spy_on() for specifying an explicit owner class
+	  for unbound methods, and warn if missing.
+
+	  Python 3.x doesn't have a real way of determining the owning class for
+	  unbound methods, and attempting to spy on an unbound method can end up
+	  causing a number of problems, potentially interfering with spies that
+	  are a subclass or superclass of the spied object.
+
+	  spy_on() now accepts an owner= parameter for unbound methods in order
+	  to explicitly specify the class. It will warn if this is missing,
+	  providing details on what it thinks the owner is and the recommended
+	  changes to make to the call.
+
+	* Fixed spying on unbound methods originally defined on the parent class
+	  of a specified or determined owning class.
+
+	* Fixed spying on old-syle classes (those not inheriting from object)
+	  on Python 2.6 and early versions of 2.7.
+
+
 version 2.0.3 final (18-August-2018):
 	* Added a version classifier for Python 3.7.
 

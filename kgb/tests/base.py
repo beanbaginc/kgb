@@ -13,20 +13,31 @@ from kgb.agency import SpyAgency
 
 class MathClass(object):
     def do_math(self, a=1, b=2, *args, **kwargs):
+        print(self)
+        assert isinstance(self, MathClass)
+
         return a + b
 
     def do_math_pos(self, a, b):
+        assert isinstance(self, MathClass)
+
         return a + b
 
     def do_math_mixed(self, a, b=2, *args, **kwargs):
+        assert isinstance(self, MathClass)
+
         return a + b
 
     @classmethod
     def class_do_math(cls, a=2, b=5, *args, **kwargs):
+        assert issubclass(cls, MathClass)
+
         return a * b
 
     @classmethod
     def class_do_math_pos(cls, a, b):
+        assert issubclass(cls, MathClass)
+
         return a * b
 
 

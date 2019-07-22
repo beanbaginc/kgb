@@ -302,6 +302,32 @@ Reset all the calls
 Wipe away the call history. Nobody will know.
 
 
+Call the original function
+--------------------------
+
+.. code-block:: python
+
+    result = obj.function.call_original('foo', bar='baz')
+
+
+Super, super useful if you want to use ``call_fake=`` to wrap a function
+and track or influence some part of it, but still want the original function
+to do its thing. For instance:
+
+.. code-block:: python
+
+    stored_results = []
+
+    def my_fake_function(*args, **kwargs):
+        kwargs['bar'] = 'baz'
+        result = obj.function.call_original(*args, **kwargs)
+        stored_results.append(result)
+
+        return result
+
+    agency.spy_on(obj.function, call_fake=my_fake_function)
+
+
 FAQ
 ===
 

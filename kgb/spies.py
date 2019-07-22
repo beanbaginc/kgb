@@ -203,7 +203,7 @@ class FunctionSpy(object):
     TYPE_UNBOUND_METHOD = 2
 
     _PROXY_METHODS = [
-        'called_with', 'last_called_with',
+        'call_original', 'called_with', 'last_called_with',
         'raised', 'last_raised', 'returned', 'last_returned',
         'raised_with_message', 'last_raised_with_message',
         'reset_calls', 'unspy',
@@ -377,8 +377,6 @@ class FunctionSpy(object):
             else:
                 self._set_method(self.owner, self.func_name, real_func)
 
-        self._real_func = real_func
-
         self.argspec = self._get_arg_spec(func)
 
         # If call_fake was provided, check that it's valid and has a
@@ -395,6 +393,9 @@ class FunctionSpy(object):
                                                  call_fake_argspec):
                 raise IncompatibleFunctionError(
                     self, func, self.argspec, call_fake, call_fake_argspec)
+
+        self._real_func = real_func
+        self._call_orig_func = self._clone_function(self.orig_func)
 
         if call_fake:
             self.func = call_fake
@@ -603,6 +604,42 @@ class FunctionSpy(object):
 
         if unregister:
             self.agency.spies.remove(self)
+
+    def call_original(self, *args, **kwargs):
+        """Call the original function being spied on.
+
+        The function will behave as normal, and will not trigger any spied
+        behavior or call tracking.
+
+        Args:
+            *args (tuple):
+                The positional arguments to pass to the function.
+
+            **kwargs (dict):
+                The keyword arguments to pass to the function.
+
+        Returns:
+            object:
+            The return value of the function.
+
+        Raises:
+            Exception:
+                Any exceptions raised by the function.
+        """
+        if self.func_type == self.TYPE_BOUND_METHOD:
+            return self._call_orig_func(self.owner, *args, **kwargs)
+        else:
+            if self.func_type == self.TYPE_UNBOUND_METHOD:
+                if not args or not isinstance(args[0], self.owner):
+                    raise TypeError(
+                        'The first argument to %s.call_original() must be '
+                        'an instance of %s.%s, since this is an unbound '
+                        'method.'
+                        % (self._call_orig_func.__name__,
+                           self.owner.__module__,
+                           self.owner.__name__))
+
+            return self._call_orig_func(*args, **kwargs)
 
     def called_with(self, *args, **kwargs):
         """Return whether the spy was ever called with the given arguments.

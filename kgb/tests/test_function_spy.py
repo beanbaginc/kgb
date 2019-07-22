@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import inspect
+import re
 import types
 
 from kgb.errors import ExistingSpyError, IncompatibleFunctionError
@@ -21,10 +22,14 @@ def do_math_mixed(a, b=2, *args, **kwargs):
 
 
 def fake_do_math(self, a, b, *args, **kwargs):
+    assert isinstance(self, MathClass)
+
     return a - b
 
 
-def fake_class_do_math(self, a, b, *args, **kwargs):
+def fake_class_do_math(cls, a, b, *args, **kwargs):
+    assert issubclass(cls, MathClass)
+
     return a - b
 
 
@@ -38,17 +43,25 @@ def fake_something_awesome():
 
 class AdderObject(object):
     def func(self):
+        assert isinstance(self, AdderObject)
+
         return [self.add_one(i) for i in (1, 2, 3)]
 
     def add_one(self, i):
+        assert isinstance(self, AdderObject)
+
         return i + 1
 
     @classmethod
     def class_func(cls):
+        assert cls is AdderObject
+
         return [cls.class_add_one(i) for i in (1, 2, 3)]
 
     @classmethod
     def class_add_one(cls, i):
+        assert issubclass(cls, AdderObject)
+
         return i + 1
 
 
@@ -942,6 +955,173 @@ class FunctionSpyTests(TestCase):
         result = AdderObject.class_func()
         self.assertTrue(AdderObject.class_func.called)
         self.assertEqual(result, [2, 3, 4])
+
+    def test_call_original_with_orig_func_and_function(self):
+        """Testing FunctionSpy.call_original with spy on function set up using
+        call_original=True
+        """
+        self.agency.spy_on(do_math,
+                           call_original=True)
+
+        result = do_math.call_original(10, 20)
+        self.assertEqual(result, -10)
+
+        self.assertFalse(do_math.called)
+
+    def test_call_original_with_orig_func_and_bound_method(self):
+        """Testing FunctionSpy.call_original with spy on bound method set up
+        using call_original=True
+        """
+        obj = AdderObject()
+        self.agency.spy_on(obj.add_one,
+                           call_original=True)
+
+        result = obj.add_one.call_original(5)
+        self.assertEqual(result, 6)
+
+        self.assertFalse(obj.add_one.called)
+
+    def test_call_original_with_orig_func_and_unbound_method(self):
+        """Testing FunctionSpy.call_original with spy on unbound method set up
+        using call_original=True
+        """
+        self.agency.spy_on(AdderObject.add_one,
+                           call_original=True)
+
+        obj = AdderObject()
+        result = obj.add_one.call_original(obj, 5)
+        self.assertEqual(result, 6)
+
+        self.assertFalse(AdderObject.add_one.called)
+        self.assertFalse(obj.add_one.called)
+
+    def test_call_original_with_orig_func_and_classmethod(self):
+        """Testing FunctionSpy.call_original with spy on classmethod set up
+        using call_original=True
+        """
+        self.agency.spy_on(AdderObject.class_add_one,
+                           call_original=True)
+
+        result = AdderObject.class_add_one.call_original(5)
+        self.assertEqual(result, 6)
+
+        self.assertFalse(AdderObject.class_add_one.called)
+
+    def test_call_original_with_no_func_and_function(self):
+        """Testing FunctionSpy.call_original with spy on function set up using
+        call_original=False
+        """
+        self.agency.spy_on(do_math)
+
+        result = do_math.call_original(10, 20)
+        self.assertEqual(result, -10)
+
+        self.assertFalse(do_math.called)
+
+    def test_call_original_with_no_func_and_bound_method(self):
+        """Testing FunctionSpy.call_original with spy on bound method set up
+        using call_original=False
+        """
+        obj = MathClass()
+        self.agency.spy_on(obj.do_math)
+
+        result = obj.do_math.call_original(10, 20)
+        self.assertEqual(result, 30)
+
+        self.assertFalse(obj.do_math.called)
+
+    def test_call_original_with_no_func_and_unbound_method(self):
+        """Testing FunctionSpy.call_original with spy on unbound method set up
+        using call_original=False
+        """
+        self.agency.spy_on(MathClass.do_math)
+
+        obj = MathClass()
+        result = obj.do_math.call_original(obj, 10, 20)
+        self.assertEqual(result, 30)
+
+        self.assertFalse(MathClass.do_math.called)
+        self.assertFalse(obj.do_math.called)
+
+    def test_call_original_with_no_func_and_classmethod(self):
+        """Testing FunctionSpy.call_original with spy on classmethod set up
+        using call_original=False
+        """
+        self.agency.spy_on(MathClass.class_do_math)
+
+        result = MathClass.class_do_math.call_original(10, 20)
+        self.assertEqual(result, 200)
+
+        self.assertFalse(MathClass.class_do_math.called)
+
+    def test_call_original_with_fake_func_and_function(self):
+        """Testing FunctionSpy.call_original with spy on function set up using
+        call_fake=
+        """
+        self.agency.spy_on(do_math,
+                           call_fake=fake_do_math)
+
+        result = do_math.call_original(10, 20)
+        self.assertEqual(result, -10)
+
+        self.assertFalse(do_math.called)
+
+    def test_call_original_with_fake_func_and_bound_method(self):
+        """Testing FunctionSpy.call_original with spy on bound method set up
+        using call_fake=
+        """
+        obj = MathClass()
+        self.agency.spy_on(obj.do_math,
+                           call_fake=fake_do_math)
+
+        result = obj.do_math.call_original(10, 20)
+        self.assertEqual(result, 30)
+
+        self.assertFalse(obj.do_math.called)
+
+    def test_call_original_with_fake_func_and_unbound_method(self):
+        """Testing FunctionSpy.call_original with spy on unbound method set up
+        using call_fake=
+        """
+        self.agency.spy_on(MathClass.do_math,
+                           call_fake=fake_do_math)
+
+        obj = MathClass()
+        result = obj.do_math.call_original(obj, 10, 20)
+        self.assertEqual(result, 30)
+
+        self.assertFalse(MathClass.do_math.called)
+        self.assertFalse(obj.do_math.called)
+
+    def test_call_original_with_fake_func_and_classmethod(self):
+        """Testing FunctionSpy.call_original with spy on classmethod set up
+        using call_fake=
+        """
+        self.agency.spy_on(MathClass.class_do_math,
+                           call_fake=fake_class_do_math)
+
+        result = MathClass.class_do_math.call_original(10, 20)
+        self.assertEqual(result, 200)
+
+        self.assertFalse(MathClass.class_do_math.called)
+
+    def test_call_original_with_unbound_method_no_instance(self):
+        """Testing FunctionSpy.call_original with spy on unbound method set up
+        using call_original=True without passing instance
+        """
+        self.agency.spy_on(AdderObject.add_one,
+                           call_original=True)
+
+        obj = AdderObject()
+
+        message = re.escape(
+            'The first argument to add_one.call_original() must be an '
+            'instance of kgb.tests.test_function_spy.AdderObject, since this '
+            'is an unbound method.'
+        )
+
+        with self.assertRaisesRegexp(TypeError, message):
+            obj.add_one.call_original(5)
 
     def test_called(self):
         """Testing FunctionSpy.called"""

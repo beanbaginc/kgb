@@ -45,7 +45,21 @@ else:
     def iteritems(d):
         return iter(d.items())
 
-_UNSET_ARG = object()
+
+class _UnsetArg(object):
+    """Internal class for representation unset arguments on functions."""
+
+    def __repr__(self):
+        """Return a string representation of this object.
+
+        Returns:
+            unicode:
+            ``_UNSET_ARG``.
+        """
+        return '_UNSET_ARG'
+
+
+_UNSET_ARG = _UnsetArg()
 
 
 class SpyCall(object):
@@ -1095,21 +1109,63 @@ class FunctionSpy(object):
             unicode:
             A string representing an argument list for a function definition.
         """
-        kwargs = {
-            'args': argspec['all_args'],
-            'varargs': argspec['args_name'],
-            'varkw': argspec['kwargs_name'],
-            'defaults': argspec['defaults'],
-            'formatvalue': lambda value: '=_UNSET_ARG',
-        }
+        if hasattr(inspect, 'Signature'):
+            Parameter = inspect.Parameter
 
-        if pyver[0] >= 3:
-            kwargs.update({
-                'kwonlyargs': argspec['kwonly_args'],
-                'kwonlydefaults': argspec['kwonly_defaults'],
-            })
+            args = argspec['all_args']
+            defaults = argspec['defaults'] or ()
+            kwonly_args = argspec['kwonly_args']
+            kwonly_defaults = argspec['kwonly_defaults']
+            args_name = argspec['args_name']
+            kwargs_name = argspec['kwargs_name']
 
-        return inspect.formatargspec(**kwargs)[1:-1]
+            parameters = []
+            first_default = len(args) - len(defaults)
+
+            for i, arg in enumerate(args):
+                if defaults and i >= first_default:
+                    default = _UNSET_ARG
+                else:
+                    default = Parameter.empty
+
+                parameters.append(Parameter(
+                    name=arg,
+                    kind=Parameter.POSITIONAL_OR_KEYWORD,
+                    default=default))
+
+            if args_name:
+                parameters.append(Parameter(
+                    name=args_name,
+                    kind=Parameter.VAR_POSITIONAL))
+
+            for arg in kwonly_args:
+                parameters.append(Parameter(
+                    name=arg,
+                    kind=Parameter.KEYWORD_ONLY,
+                    default=kwonly_defaults.get(arg, Parameter.empty)))
+
+            if kwargs_name:
+                parameters.append(Parameter(
+                    name=kwargs_name,
+                    kind=Parameter.VAR_KEYWORD))
+
+            return str(inspect.Signature(parameters=parameters))[1:-1]
+        else:
+            kwargs = {
+                'args': argspec['all_args'],
+                'varargs': argspec['args_name'],
+                'varkw': argspec['kwargs_name'],
+                'defaults': argspec['defaults'],
+                'formatvalue': lambda value: '=_UNSET_ARG',
+            }
+
+            if pyver[0] >= 3:
+                kwargs.update({
+                    'kwonlyargs': argspec['kwonly_args'],
+                    'kwonlydefaults': argspec['kwonly_defaults'],
+                })
+
+            return inspect.formatargspec(**kwargs)[1:-1]
 
     def _are_argspecs_compatible(self, master_argspec, compat_argspec):
         """Return whether two argument specifications are compatible.

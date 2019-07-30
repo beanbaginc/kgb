@@ -1,3 +1,14 @@
+version 4.0 final (30-July-2019):
+	* Added call_original(), which calls the original spied-on function.
+
+	  The call will not be logged, and will invoke the original behavior of
+	  the function. This is useful when a spy simply needs to wrap another
+	  function.
+
+	* Updated the Python 3 support to use the modern, non-deprecated support
+	  for inspecting and formatting function/method signatures.
+
+
 version 3.0 final (23-March-2019):
 	* Added an argument to spy_on() for specifying an explicit owner class
 	  for unbound methods, and warn if missing.

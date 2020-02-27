@@ -3,6 +3,23 @@ from __future__ import unicode_literals
 import traceback
 
 
+class InternalKGBError(Exception):
+    """An internal error about the inner workings of KGB."""
+
+    def __init__(self, msg):
+        """Initialize the error.
+
+        Args:
+            msg (unicode):
+                The message to display. A general message about contacting
+                support will be appended to this.
+        """
+        super(InternalKGBError, self).__init__(
+            '%s\n\n'
+            'This is an internal error in KGB. Please report it!'
+            % msg)
+
+
 class ExistingSpyError(ValueError):
     """An error for when an existing spy was found on a function.
 
@@ -38,20 +55,26 @@ class IncompatibleFunctionError(ValueError):
     spy.
     """
 
-    def __init__(self, spy, func, func_argspec, incompatible_func,
-                 incompatible_func_argspec):
+    def __init__(self, func, func_sig, incompatible_func,
+                 incompatible_func_sig):
         """Initialize the error.
 
         Args:
             func (callable):
                 The function containing the original signature.
 
+            func_sig (kgb.signature.FunctionSig):
+                The signature of ``func``.
+
             incompatible_func (callable):
                 The function that was not compatible.
+
+            incompatible_func_sig (kgb.signature.FunctionSig):
+                The signature of ``incompatible_func``.
         """
         super(IncompatibleFunctionError, self).__init__(
             'The function signature of %r (%s) is not compatible with %r (%s).'
             % (incompatible_func,
-               spy._format_arg_spec(incompatible_func_argspec),
+               incompatible_func_sig.format_arg_spec(),
                func,
-               spy._format_arg_spec(func_argspec)))
+               func_sig.format_arg_spec()))

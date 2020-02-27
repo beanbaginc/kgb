@@ -5,7 +5,8 @@ import re
 import types
 
 from kgb.errors import ExistingSpyError, IncompatibleFunctionError
-from kgb.spies import FUNC_CODE_ATTR, FUNC_NAME_ATTR, text_type
+from kgb.signature import FunctionSig
+from kgb.spies import text_type
 from kgb.tests.base import MathClass, TestCase
 
 
@@ -86,8 +87,9 @@ class FunctionSpyTests(TestCase):
 
         self.assertTrue(hasattr(something_awesome, 'spy'))
         self.assertEqual(something_awesome.spy, spy)
-        self.assertEqual(getattr(spy.func, FUNC_NAME_ATTR),
-                         getattr(fake_something_awesome, FUNC_NAME_ATTR))
+        self.assertEqual(
+            getattr(spy.func, FunctionSig.FUNC_NAME_ATTR),
+            getattr(fake_something_awesome, FunctionSig.FUNC_NAME_ATTR))
         self.assertEqual(spy.orig_func, something_awesome)
         self.assertEqual(spy.func_name, 'something_awesome')
         self.assertEqual(spy.func_type, spy.TYPE_FUNCTION)
@@ -172,8 +174,9 @@ class FunctionSpyTests(TestCase):
 
         self.assertTrue(hasattr(something_awesome, 'spy'))
         self.assertEqual(something_awesome.spy, spy)
-        self.assertEqual(getattr(spy.func, FUNC_NAME_ATTR),
-                         getattr(something_awesome, FUNC_NAME_ATTR))
+        self.assertEqual(
+            getattr(spy.func, FunctionSig.FUNC_NAME_ATTR),
+            getattr(something_awesome, FunctionSig.FUNC_NAME_ATTR))
         self.assertEqual(spy.orig_func, something_awesome)
         self.assertEqual(spy.func_name, 'something_awesome')
         self.assertIsInstance(something_awesome, types.FunctionType)
@@ -1160,7 +1163,7 @@ class FunctionSpyTests(TestCase):
 
     def test_unspy(self):
         """Testing FunctionSpy.unspy"""
-        orig_code = getattr(something_awesome, FUNC_CODE_ATTR)
+        orig_code = getattr(something_awesome, FunctionSig.FUNC_CODE_ATTR)
         spy = self.agency.spy_on(something_awesome, call_fake=lambda: 'spy!')
 
         self.assertTrue(hasattr(something_awesome, 'spy'))
@@ -1169,7 +1172,9 @@ class FunctionSpyTests(TestCase):
 
         spy.unspy()
         self.assertFalse(hasattr(something_awesome, 'spy'))
-        self.assertEqual(getattr(something_awesome, FUNC_CODE_ATTR), orig_code)
+        self.assertEqual(getattr(something_awesome,
+                                 FunctionSig.FUNC_CODE_ATTR),
+                         orig_code)
         self.assertEqual(something_awesome(), 'Tada!')
 
     def test_unspy_and_bound_method(self):

@@ -2,64 +2,13 @@ from __future__ import absolute_import, unicode_literals
 
 import copy
 import inspect
-import logging
-import sys
 import types
 
-from kgb.errors import ExistingSpyError, IncompatibleFunctionError
-
-
-logger = logging.getLogger('kgb')
-
-
-pyver = sys.version_info[:2]
-
-if pyver[0] == 2:
-    FUNC_CLOSURE_ATTR = 'func_closure'
-    FUNC_CODE_ATTR = 'func_code'
-    FUNC_DEFAULTS_ATTR = 'func_defaults'
-    FUNC_GLOBALS_ATTR = 'func_globals'
-    FUNC_NAME_ATTR = 'func_name'
-    METHOD_SELF_ATTR = 'im_self'
-
-    text_type = unicode
-
-    def iterkeys(d):
-        return d.iterkeys()
-
-    def iteritems(d):
-        return d.iteritems()
-else:
-    FUNC_CLOSURE_ATTR = '__closure__'
-    FUNC_CODE_ATTR = '__code__'
-    FUNC_DEFAULTS_ATTR = '__defaults__'
-    FUNC_GLOBALS_ATTR = '__globals__'
-    FUNC_NAME_ATTR = '__name__'
-    METHOD_SELF_ATTR = '__self__'
-
-    text_type = str
-
-    def iterkeys(d):
-        return iter(d.keys())
-
-    def iteritems(d):
-        return iter(d.items())
-
-
-class _UnsetArg(object):
-    """Internal class for representation unset arguments on functions."""
-
-    def __repr__(self):
-        """Return a string representation of this object.
-
-        Returns:
-            unicode:
-            ``_UNSET_ARG``.
-        """
-        return '_UNSET_ARG'
-
-
-_UNSET_ARG = _UnsetArg()
+from kgb.errors import (ExistingSpyError,
+                        IncompatibleFunctionError,
+                        InternalKGBError)
+from kgb.pycompat import iteritems, iterkeys, pyver, text_type
+from kgb.signature import FunctionSig, _UNSET_ARG
 
 
 class SpyCall(object):
@@ -118,8 +67,7 @@ class SpyCall(object):
         if self.args[:len(args)] != args:
             return False
 
-        argspec = self.spy.argspec
-        pos_args = argspec['args']
+        pos_args = self.spy._sig.arg_names
 
         if self.spy.func_type in (FunctionSpy.TYPE_BOUND_METHOD,
                                   FunctionSpy.TYPE_UNBOUND_METHOD):
@@ -204,17 +152,17 @@ class FunctionSpy(object):
     """
 
     #: The spy represents a standard function.
-    TYPE_FUNCTION = 0
+    TYPE_FUNCTION = FunctionSig.TYPE_FUNCTION
 
     #: The spy represents a bound method.
     #:
     #: Bound methods are functions on an instance of a class, or classmethods.
-    TYPE_BOUND_METHOD = 1
+    TYPE_BOUND_METHOD = FunctionSig.TYPE_BOUND_METHOD
 
     #: The spy represents an unbound method.
     #:
     #: Unbound methods are standard methods on a class.
-    TYPE_UNBOUND_METHOD = 2
+    TYPE_UNBOUND_METHOD = FunctionSig.TYPE_UNBOUND_METHOD
 
     _PROXY_METHODS = [
         'call_original', 'called_with', 'last_called_with',
@@ -262,90 +210,20 @@ class FunctionSpy(object):
             raise ExistingSpyError(func)
 
         if (not callable(func) or
-            not hasattr(func, FUNC_NAME_ATTR) or
-            not (hasattr(func, METHOD_SELF_ATTR) or
-                 hasattr(func, FUNC_GLOBALS_ATTR))):
+            not hasattr(func, FunctionSig.FUNC_NAME_ATTR) or
+            not (hasattr(func, FunctionSig.METHOD_SELF_ATTR) or
+                 hasattr(func, FunctionSig.FUNC_GLOBALS_ATTR))):
             raise ValueError('%r cannot be spied on. It does not appear to '
                              'be a valid function or method.'
                              % func)
 
         self.init_frame = inspect.currentframe()
         self.agency = agency
-        self.func_type = self.TYPE_FUNCTION
-        self.func_name = getattr(func, FUNC_NAME_ATTR)
         self.orig_func = func
-        self.owner = None
 
-        if hasattr(func, '__func__'):
-            # This is an instancemethod on a class. Grab the real function
-            # from it.
-            real_func = func.__func__
-        else:
-            real_func = func
-
-        # Determine if this is a method, and if so, what type and what owns it.
-        if pyver[0] == 2 and inspect.ismethod(func):
-            method_owner = getattr(func, METHOD_SELF_ATTR)
-
-            if method_owner is None:
-                self.func_type = self.TYPE_UNBOUND_METHOD
-                self.owner = func.im_class
-
-                if owner is _UNSET_ARG:
-                    logger.warning('Unbound method owners can easily be '
-                                   'determined on Python 2.x, but not on '
-                                   '3.x. Please pass owner= to spy_on() '
-                                   'to set a specific owner for %r.',
-                                   func)
-            else:
-                self.func_type = self.TYPE_BOUND_METHOD
-                self.owner = method_owner
-        elif pyver[0] >= 3:
-            # Python 3 does not officially have unbound methods. Methods on
-            # instances are easily identified as types.MethodType, but
-            # unbound methods are just standard functions without something
-            # like __self__ to point to the parent class.
-            #
-            # However, the owner can generally be inferred (but not always!).
-            # Python 3.3 introduced __qualname__, which is a string
-            # identifying the path to the class within the containing module.
-            # The path is expected to be traversable, unless it contains
-            # "<locals>" in it, in which case it's defined somewhere you can't
-            # get to it (like in a function).
-            #
-            # So to determine if it's an unbound method, we check to see what
-            # __qualname__ looks like, and then we try to find it. If we can,
-            # we grab the owner and identify it as an unbound method. If not,
-            # it stays as a standard function.
-            if inspect.ismethod(func):
-                self.func_type = self.TYPE_BOUND_METHOD
-                self.owner = getattr(func, METHOD_SELF_ATTR)
-            elif '.' in func.__qualname__:
-                if owner is not _UNSET_ARG:
-                    self.owner = owner
-                    self.func_type = self.TYPE_UNBOUND_METHOD
-                elif '<locals>' in func.__qualname__:
-                    # We can only assume this is a function. It might not be.
-                    self.func_type = self.TYPE_FUNCTION
-                else:
-                    method_owner = inspect.getmodule(real_func)
-
-                    for part in real_func.__qualname__.split('.')[:-1]:
-                        try:
-                            method_owner = getattr(method_owner, part)
-                        except AttributeError:
-                            method_owner = None
-                            break
-
-                    if method_owner is not None:
-                        self.func_type = self.TYPE_UNBOUND_METHOD
-                        self.owner = method_owner
-
-                    logger.warning('Determined the owner of %r to be %r, '
-                                   'but it may be wrong. Please pass '
-                                   'owner= to spy_on() to set a specific '
-                                   'owner.',
-                                   func, self.owner)
+        self._sig = FunctionSig(func=func,
+                                owner=owner)
+        real_func = self._sig.real_func
 
         # If the caller passed an explicit owner, check to see if it's at all
         # valid. Note that it may have been handled above (for unbound
@@ -391,8 +269,6 @@ class FunctionSpy(object):
             else:
                 self._set_method(self.owner, self.func_name, real_func)
 
-        self.argspec = self._get_arg_spec(func)
-
         # If call_fake was provided, check that it's valid and has a
         # compatible function signature.
         if call_fake is not None:
@@ -401,12 +277,14 @@ class FunctionSpy(object):
                                  'not appear to be a valid function or method.'
                                  % call_fake)
 
-            call_fake_argspec = self._get_arg_spec(call_fake)
+            call_fake_sig = FunctionSig(call_fake)
 
-            if not self._are_argspecs_compatible(self.argspec,
-                                                 call_fake_argspec):
+            if not self._sig.is_compatible_with(call_fake_sig):
                 raise IncompatibleFunctionError(
-                    self, func, self.argspec, call_fake, call_fake_argspec)
+                    func=func,
+                    func_sig=self._sig,
+                    incompatible_func=call_fake,
+                    incompatible_func_sig=call_fake_sig)
 
         self._real_func = real_func
         self._call_orig_func = self._clone_function(self.orig_func)
@@ -455,17 +333,20 @@ class FunctionSpy(object):
         # We also must build the function dynamically, using exec().
         # The reason is that we want to accurately mimic the function
         # signature of the original function (in terms of specifying
-        # the correct positional and keyword arguments). Python provides
-        # a handy function to do most of this (inspect.formatargspec()).
+        # the correct positional and keyword arguments). The way we format
+        # arguments depends on the version of Python. We maintain
+        # compatibility through the FunctionSig.format_arg_spec() methods
+        # (which has implementations for both Python 2 and 3).
         #
         # We do use different values for the default keyword arguments,
         # which is actually okay. Within the function, these will all be
         # set to a special value (_UNSET_ARG), which is used later for
         # determining which keyword arguments were provided and which
         # were not. Anything attempting to inspect this function with
-        # getargspec will get the defaults from the original function,
-        # by way of the original func.func_defaults attribute (on Python 2)
-        # or __defaults__ (on Python 3).
+        # getargspec(), getfullargspec(), or inspect.Signature will get the
+        # defaults from the original function, by way of the
+        # original func.func_defaults attribute (on Python 2) or
+        # __defaults__ (on Python 3).
         #
         # This forwarding function then needs to call the forwarded
         # function in exactly the same manner as it was called. That is,
@@ -498,25 +379,38 @@ class FunctionSpy(object):
         # though.
         exec_locals = {}
 
-        eval(
-            compile(
-                'def forwarding_call(%(params)s):\n'
-                '    from kgb.spies import FunctionSpy as _kgb_cls\n'
-                '    _kgb_l = locals()\n'
-                ''
-                '    return _kgb_cls._spy_map[%(spy_id)s](%(call_args)s)\n'
+        func_code_str = (
+            'def forwarding_call(%(params)s):\n'
+            '    from kgb.spies import FunctionSpy as _kgb_cls\n'
+            '    _kgb_l = locals()\n'
+            ''
+            '    return _kgb_cls._spy_map[%(spy_id)s](%(call_args)s)\n'
+            % {
+                'params': self._sig.format_arg_spec(),
+                'call_args': self._sig.format_forward_call_args(),
+                'spy_id': id(self),
+            }
+        )
+
+        try:
+            eval(compile(func_code_str, '<string>', 'exec'),
+                 globals(), exec_locals)
+        except Exception as e:
+            raise InternalKGBError(
+                'Unable to compile a spy function for %(func)r: %(error)s'
+                '\n\n'
+                '%(code)s'
                 % {
-                    'params': self._format_arg_spec(self.argspec),
-                    'call_args': self._format_call_args(self.argspec),
-                    'spy_id': id(self),
-                }, '<string>', 'exec'),
-            globals(), exec_locals)
+                    'code': func_code_str,
+                    'error': e,
+                    'func': func,
+                })
 
         forwarding_call = exec_locals['forwarding_call']
         assert forwarding_call is not None
 
-        self._old_code = getattr(func, FUNC_CODE_ATTR)
-        temp_code = getattr(forwarding_call, FUNC_CODE_ATTR)
+        self._old_code = getattr(func, FunctionSig.FUNC_CODE_ATTR)
+        temp_code = getattr(forwarding_call, FunctionSig.FUNC_CODE_ATTR)
 
         code_args = [temp_code.co_argcount]
 
@@ -543,7 +437,7 @@ class FunctionSpy(object):
         ]
 
         new_code = types.CodeType(*code_args)
-        setattr(real_func, FUNC_CODE_ATTR, new_code)
+        setattr(real_func, FunctionSig.FUNC_CODE_ATTR, new_code)
         assert self._old_code != new_code
 
         FunctionSpy._spy_map[id(self)] = self
@@ -561,6 +455,38 @@ class FunctionSpy(object):
             # the forwarding_call above in an infinite loop.
             self.func = self._clone_function(self.func,
                                              code=self._old_code)
+
+    @property
+    def func_type(self):
+        """The type of function being spied on.
+
+        This will be one of :py:attr:`TYPE_FUNCTION`,
+        :py:attr:`TYPE_UNBOUND_METHOD`, or :py:attr:`TYPE_BOUND_METHOD`.
+
+        Type:
+            int
+        """
+        return self._sig.func_type
+
+    @property
+    def func_name(self):
+        """The name of the function being spied on.
+
+        Type:
+            str
+        """
+        return self._sig.func_name
+
+    @property
+    def owner(self):
+        """The owner of the method, if a bound or unbound method.
+
+        This will be ``None`` if there is no owner.
+
+        Type:
+            type
+        """
+        return self._sig.owner
 
     @property
     def called(self):
@@ -614,7 +540,7 @@ class FunctionSpy(object):
         for func_name in self._PROXY_METHODS:
             delattr(self._real_func, func_name)
 
-        setattr(self._real_func, FUNC_CODE_ATTR, self._old_code)
+        setattr(self._real_func, FunctionSig.FUNC_CODE_ATTR, self._old_code)
 
         if self.owner is not None:
             self._set_method(self.owner, self.func_name, self.orig_func)
@@ -938,11 +864,11 @@ class FunctionSpy(object):
             The new function.
         """
         cloned_func = types.FunctionType(
-            code or getattr(func, FUNC_CODE_ATTR),
-            getattr(func, FUNC_GLOBALS_ATTR),
-            getattr(func, FUNC_NAME_ATTR),
-            getattr(func, FUNC_DEFAULTS_ATTR),
-            getattr(func, FUNC_CLOSURE_ATTR))
+            code or getattr(func, FunctionSig.FUNC_CODE_ATTR),
+            getattr(func, FunctionSig.FUNC_GLOBALS_ATTR),
+            getattr(func, FunctionSig.FUNC_NAME_ATTR),
+            getattr(func, FunctionSig.FUNC_DEFAULTS_ATTR),
+            getattr(func, FunctionSig.FUNC_CLOSURE_ATTR))
 
         if pyver[0] >= 3:
             # Python 3.x doesn't support providing any of the new
@@ -984,269 +910,3 @@ class FunctionSpy(object):
                     # fall back to modifying __dict__. It's not ideal but
                     # doable.
                     owner.__dict__[name] = method
-
-    def _format_call_args(self, argspec):
-        """Format arguments to pass in for forwarding a call.
-
-        This will build a string for use in the forwarding call, which will
-        pass every positional and keyword parameter defined for the function
-        to forwarded function, along with the ``*args`` and ``**kwargs``,
-        if specified.
-
-        Args:
-            argspec (dict):
-                The argument specification for the function to call.
-
-        Returns:
-            unicode:
-            A string representing the arguments to pass when forwarding a call.
-        """
-        if pyver[0] == 3:
-            # Starting in Python 3, something changed with variables. Due to
-            # the way we generate the hybrid code object, we can't always
-            # reference the local variables directly. Sometimes we can, but
-            # other times we have to get them from locals(). We can't always
-            # get them from there, though, so instead we conditionally check
-            # both.
-            def _format_arg(arg_name):
-                return (
-                    '_kgb_l["%(arg)s"] if "%(arg)s" in _kgb_l else %(arg)s'
-                    % {
-                        'arg': arg_name,
-                    })
-        else:
-            def _format_arg(arg_name):
-                return arg_name
-
-        # Build the list of positional and keyword arguments.
-        result = [
-            _format_arg(arg_name)
-            for arg_name in argspec['args']
-        ] + [
-            '%s=%s' % (arg_name, _format_arg(arg_name))
-            for arg_name in argspec['kwargs']
-        ]
-
-        # Add the variable arguments.
-        args_name = argspec['args_name']
-        kwargs_name = argspec['kwargs_name']
-
-        if args_name:
-            result.append('*%s' % _format_arg(args_name))
-
-        if kwargs_name:
-            result.append('**%s' % _format_arg(kwargs_name))
-
-        return ', '.join(result)
-
-    def _get_arg_spec(self, func):
-        """Return the argument specification for a function.
-
-        This will return some information on a function, depending on whether
-        we're running on Python 2 or 3. The information consists of the list of
-        arguments the function takes, the name of the ``*args`` and
-        ``**kwargs`` arguments, and any default values for keyword arguments.
-        If running on Python 3, the list of keyword-only arguments are also
-        returned.
-
-        Args:
-            func (callable):
-                The function to introspect.
-
-        Returns:
-            dict:
-            A dictionary of information on the function.
-        """
-        if pyver[0] == 2:
-            argspec = inspect.getargspec(func)
-
-            result = {
-                'args_name': argspec.varargs,
-                'kwargs_name': argspec.keywords,
-            }
-
-            all_args = argspec.args
-            defaults = argspec.defaults
-
-            result.update({
-                'all_args': all_args,
-                'args_name': argspec.varargs,
-                'defaults': defaults,
-            })
-
-            keyword_args = result.get('kwonly_args', [])
-
-            if all_args and defaults:
-                num_defaults = len(argspec.defaults)
-                keyword_args = all_args[-num_defaults:]
-                pos_args = all_args[:-num_defaults]
-            else:
-                pos_args = all_args
-
-            result.update({
-                'args': pos_args,
-                'kwargs': keyword_args,
-            })
-        else:
-            assert hasattr(inspect, '_signature_from_callable'), (
-                'Python %s.%s does not have inspect._signature_from_callable, '
-                'which is needed in order to generate a Signature from a '
-                'function.'
-                % pyver)
-
-            sig = inspect._signature_from_callable(
-                func,
-                follow_wrapper_chains=False,
-                skip_bound_arg=False,
-                sigcls=inspect.Signature)
-
-            all_args = []
-            args = []
-            args_name = None
-            kwargs = []
-            kwargs_name = None
-
-            for param in sig.parameters.values():
-                kind = param.kind
-                name = param.name
-
-                if kind is param.POSITIONAL_OR_KEYWORD:
-                    # Standard arguments -- either positional or keyword.
-                    all_args.append(name)
-
-                    if param.default is param.empty:
-                        args.append(name)
-                    else:
-                        kwargs.append(name)
-                elif kind is param.POSITIONAL_ONLY:
-                    # Positional-only arguments (Python 3.8+).
-                    all_args.append(name)
-                    args.append(name)
-                elif kind is param.KEYWORD_ONLY:
-                    # Keyword-only arguments (Python 3+).
-                    kwargs.append(name)
-                elif kind is param.VAR_POSITIONAL:
-                    # *args
-                    args_name = name
-                elif kind is param.VAR_KEYWORD:
-                    kwargs_name = name
-
-            return {
-                'all_args': all_args,
-                'args': args,
-                'args_name': args_name,
-                'kwargs': kwargs,
-                'kwargs_name': kwargs_name,
-                'sig': sig,
-            }
-
-        return result
-
-    def _format_arg_spec(self, argspec):
-        """Format the spied function's arguments for a new function definition.
-
-        This will build a list of parameters for a function definition based on
-        the argument specification found when introspecting a spied function.
-        This consists of positional arguments, keyword arguments, and
-        keyword-only arguments.
-
-        Args:
-            argspec (dict):
-                The argument specification for the function.
-
-        Returns:
-            unicode:
-            A string representing an argument list for a function definition.
-        """
-        if 'sig' in argspec:
-            parameters = []
-
-            # Make a copy of the Signature and its parameters, but leave out
-            # all type annotations.
-            for orig_param in argspec['sig'].parameters.values():
-                default = orig_param.default
-
-                if (orig_param.kind is orig_param.POSITIONAL_OR_KEYWORD and
-                    default is not orig_param.empty):
-                    default = _UNSET_ARG
-
-                parameters.append(inspect.Parameter(
-                    name=orig_param.name,
-                    kind=orig_param.kind,
-                    default=default))
-
-            sig = inspect.Signature(parameters=parameters)
-
-            return str(sig)[1:-1]
-        else:
-            kwargs = {
-                'args': argspec['all_args'],
-                'varargs': argspec['args_name'],
-                'varkw': argspec['kwargs_name'],
-                'defaults': argspec['defaults'],
-                'formatvalue': lambda value: '=_UNSET_ARG',
-            }
-
-            return inspect.formatargspec(**kwargs)[1:-1]
-
-    def _are_argspecs_compatible(self, master_argspec, compat_argspec):
-        """Return whether two argument specifications are compatible.
-
-        This will check if the argument specification for a function (the
-        ``call_fake`` passed in, technically) is compatible with another
-        (the spied function), to help ensure that unit tests with incompatible
-        function signatures don't blow up with strange errors later.
-
-        This will attempt to be somewhat flexible in what it considers
-        compatible. Basically, so long as all the arguments passed in to
-        the source function could be resolved using the argument list in the
-        other function (taking into account things like positional argument
-        names as keyword arguments), they're considered compatible.
-
-        Args:
-            master_argspec (dict):
-                The master argument specification that the other must be
-                compatible with.
-
-            compat_argspec (dict):
-                The argument specification to check for compatibility with
-                the master.
-
-        Returns:
-            bool:
-            ``True`` if ``compat_argspec`` is considered compatible with
-            ``master_argspec``. ``False`` if it is not.
-        """
-        source_args_name = master_argspec['args_name']
-        compat_args_name = compat_argspec['args_name']
-        source_kwargs_name = master_argspec['kwargs_name']
-        compat_kwargs_name = compat_argspec['kwargs_name']
-
-        if compat_args_name and compat_kwargs_name:
-            return True
-
-        if ((source_args_name and not compat_args_name) or
-            (source_kwargs_name and not compat_kwargs_name)):
-            return False
-
-        source_args = master_argspec['args']
-        compat_args = compat_argspec['args']
-        compat_all_args = set(compat_argspec['all_args'])
-        compat_kwargs = set(compat_argspec['kwargs'])
-
-        if self.func_type in (self.TYPE_BOUND_METHOD,
-                              self.TYPE_UNBOUND_METHOD):
-            source_args = source_args[1:]
-            compat_args = compat_args[1:]
-
-        if (len(source_args) != len(compat_args) and
-            ((len(source_args) < len(compat_args) and not source_args_name and
-              not compat_kwargs.issuperset(source_args)) or
-             (len(source_args) > len(compat_args) and not compat_args_name))):
-            return False
-
-        if (not compat_all_args.issuperset(master_argspec['kwargs']) and
-            not compat_kwargs_name):
-            return False
-
-        return True

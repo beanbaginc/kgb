@@ -521,6 +521,9 @@ class FunctionSpy(object):
         code_args = [temp_code.co_argcount]
 
         if pyver[0] >= 3:
+            if pyver[1] >= 8:
+                code_args.append(temp_code.co_posonlyargcount)
+
             code_args.append(temp_code.co_kwonlyargcount)
 
         code_args += [
@@ -1058,38 +1061,84 @@ class FunctionSpy(object):
             argspec = inspect.getargspec(func)
 
             result = {
+                'args_name': argspec.varargs,
                 'kwargs_name': argspec.keywords,
             }
-        else:
-            argspec = inspect.getfullargspec(func)
 
-            result = {
-                'kwargs_name': argspec.varkw,
-                'kwonly_args': argspec.kwonlyargs,
-                'kwonly_defaults': argspec.kwonlydefaults,
+            all_args = argspec.args
+            defaults = argspec.defaults
+
+            result.update({
+                'all_args': all_args,
+                'args_name': argspec.varargs,
+                'defaults': defaults,
+            })
+
+            keyword_args = result.get('kwonly_args', [])
+
+            if all_args and defaults:
+                num_defaults = len(argspec.defaults)
+                keyword_args = all_args[-num_defaults:]
+                pos_args = all_args[:-num_defaults]
+            else:
+                pos_args = all_args
+
+            result.update({
+                'args': pos_args,
+                'kwargs': keyword_args,
+            })
+        else:
+            assert hasattr(inspect, '_signature_from_callable'), (
+                'Python %s.%s does not have inspect._signature_from_callable, '
+                'which is needed in order to generate a Signature from a '
+                'function.'
+                % pyver)
+
+            sig = inspect._signature_from_callable(
+                func,
+                follow_wrapper_chains=False,
+                skip_bound_arg=False,
+                sigcls=inspect.Signature)
+
+            all_args = []
+            args = []
+            args_name = None
+            kwargs = []
+            kwargs_name = None
+
+            for param in sig.parameters.values():
+                kind = param.kind
+                name = param.name
+
+                if kind is param.POSITIONAL_OR_KEYWORD:
+                    # Standard arguments -- either positional or keyword.
+                    all_args.append(name)
+
+                    if param.default is param.empty:
+                        args.append(name)
+                    else:
+                        kwargs.append(name)
+                elif kind is param.POSITIONAL_ONLY:
+                    # Positional-only arguments (Python 3.8+).
+                    all_args.append(name)
+                    args.append(name)
+                elif kind is param.KEYWORD_ONLY:
+                    # Keyword-only arguments (Python 3+).
+                    kwargs.append(name)
+                elif kind is param.VAR_POSITIONAL:
+                    # *args
+                    args_name = name
+                elif kind is param.VAR_KEYWORD:
+                    kwargs_name = name
+
+            return {
+                'all_args': all_args,
+                'args': args,
+                'args_name': args_name,
+                'kwargs': kwargs,
+                'kwargs_name': kwargs_name,
+                'sig': sig,
             }
-
-        all_args = argspec.args
-
-        result.update({
-            'all_args': all_args,
-            'defaults': argspec.defaults,
-            'args_name': argspec.varargs,
-        })
-
-        keyword_args = result.get('kwonly_args', [])
-
-        if all_args and argspec.defaults:
-            num_defaults = len(argspec.defaults)
-            keyword_args = all_args[-num_defaults:]
-            pos_args = all_args[:-num_defaults]
-        else:
-            pos_args = all_args
-
-        result.update({
-            'args': pos_args,
-            'kwargs': keyword_args,
-        })
 
         return result
 
@@ -1109,47 +1158,26 @@ class FunctionSpy(object):
             unicode:
             A string representing an argument list for a function definition.
         """
-        if hasattr(inspect, 'Signature'):
-            Parameter = inspect.Parameter
-
-            args = argspec['all_args']
-            defaults = argspec['defaults'] or ()
-            kwonly_args = argspec['kwonly_args']
-            kwonly_defaults = argspec['kwonly_defaults']
-            args_name = argspec['args_name']
-            kwargs_name = argspec['kwargs_name']
-
+        if 'sig' in argspec:
             parameters = []
-            first_default = len(args) - len(defaults)
 
-            for i, arg in enumerate(args):
-                if defaults and i >= first_default:
+            # Make a copy of the Signature and its parameters, but leave out
+            # all type annotations.
+            for orig_param in argspec['sig'].parameters.values():
+                default = orig_param.default
+
+                if (orig_param.kind is orig_param.POSITIONAL_OR_KEYWORD and
+                    default is not orig_param.empty):
                     default = _UNSET_ARG
-                else:
-                    default = Parameter.empty
 
-                parameters.append(Parameter(
-                    name=arg,
-                    kind=Parameter.POSITIONAL_OR_KEYWORD,
+                parameters.append(inspect.Parameter(
+                    name=orig_param.name,
+                    kind=orig_param.kind,
                     default=default))
 
-            if args_name:
-                parameters.append(Parameter(
-                    name=args_name,
-                    kind=Parameter.VAR_POSITIONAL))
+            sig = inspect.Signature(parameters=parameters)
 
-            for arg in kwonly_args:
-                parameters.append(Parameter(
-                    name=arg,
-                    kind=Parameter.KEYWORD_ONLY,
-                    default=kwonly_defaults.get(arg, Parameter.empty)))
-
-            if kwargs_name:
-                parameters.append(Parameter(
-                    name=kwargs_name,
-                    kind=Parameter.VAR_KEYWORD))
-
-            return str(inspect.Signature(parameters=parameters))[1:-1]
+            return str(sig)[1:-1]
         else:
             kwargs = {
                 'args': argspec['all_args'],
@@ -1158,12 +1186,6 @@ class FunctionSpy(object):
                 'defaults': argspec['defaults'],
                 'formatvalue': lambda value: '=_UNSET_ARG',
             }
-
-            if pyver[0] >= 3:
-                kwargs.update({
-                    'kwonlyargs': argspec['kwonly_args'],
-                    'kwonlydefaults': argspec['kwonly_defaults'],
-                })
 
             return inspect.formatargspec(**kwargs)[1:-1]
 

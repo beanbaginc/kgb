@@ -1,3 +1,6 @@
+import sys
+from unittest import SkipTest
+
 from kgb.tests.base import TestCase
 
 
@@ -78,6 +81,46 @@ class FunctionSpyTests(TestCase):
                 'return': bool,
             })
 
+    def test_call_with_function_and_positional_only_args(self):
+        """Testing FunctionSpy calls with function containing positional-only
+        arguments
+        """
+        if sys.version_info[:2] < (3, 8):
+            raise SkipTest('Not supported on this version of Python')
+
+        func = self.make_func("""
+            def func(a, b=1, /):
+                return a * b
+        """)
+
+        self.agency.spy_on(func)
+        result = func(2, 5)
+
+        self.assertEqual(result, 10)
+        self.assertEqual(len(func.spy.calls), 1)
+        self.assertEqual(func.spy.calls[0].args, (2, 5))
+        self.assertEqual(func.spy.calls[0].kwargs, {})
+
+    def test_call_with_function_and_positional_only_args_no_pos_passed(self):
+        """Testing FunctionSpy calls with function containing positional-only
+        arguments and no positional argument passed
+        """
+        if sys.version_info[:2] < (3, 8):
+            raise SkipTest('Not supported on this version of Python')
+
+        func = self.make_func("""
+            def func(a, b=2, /):
+                return a * b
+        """)
+
+        self.agency.spy_on(func)
+        result = func(2)
+
+        self.assertEqual(result, 4)
+        self.assertEqual(len(func.spy.calls), 1)
+        self.assertEqual(func.spy.calls[0].args, (2, 2))
+        self.assertEqual(func.spy.calls[0].kwargs, {})
+
     def test_call_with_function_and_keyword_only_args(self):
         """Testing FunctionSpy calls with function containing keyword-only
         arguments
@@ -93,7 +136,7 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(func.spy.calls[0].args, (2,))
         self.assertEqual(func.spy.calls[0].kwargs, {'b': 5})
 
-    def test_call_with_function_and_keyword_only_args(self):
+    def test_call_with_function_and_keyword_only_args_no_kw_passed(self):
         """Testing FunctionSpy calls with function containing keyword-only
         arguments and no keyword passed
         """

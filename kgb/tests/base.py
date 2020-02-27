@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import re
 import sys
+import textwrap
 
 if sys.version_info[:2] >= (2, 7):
     import unittest
@@ -72,3 +73,30 @@ class TestCase(unittest.TestCase):
             doc = self.ws_re.sub(' ', doc).strip()
 
         return doc
+
+    def make_func(self, code_str, func_name='func'):
+        """Return a new function, created by the supplied Python code.
+
+        This is used to create functions with signatures that depend on a
+        specific version of Python, and would generate syntax errors on
+        earlier versions.
+
+        Args:
+            code_str (unicode):
+                The Python code used to create the function.
+
+            func_name (unicode, optional):
+                The expected name of the function.
+
+        Returns:
+            callable:
+            The resulting function.
+
+        Raises:
+            Exception:
+                There was an error with the supplied code.
+        """
+        scope = {}
+        exec(textwrap.dedent(code_str), scope)
+
+        return scope[func_name]

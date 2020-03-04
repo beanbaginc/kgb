@@ -49,7 +49,7 @@ or::
 
     $ easy_install kgb
 
-kgb supports Python 2.5 through 2.7 and 3.4 through 3.6.
+kgb supports Python 2.5 through 2.7 and 3.4 through 3.8.
 
 
 Spying for fun and profit

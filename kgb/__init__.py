@@ -52,6 +52,12 @@ __version__ = get_package_version()
 
 
 __all__ = [
-    'SpyAgency', 'spy_on', 'VERSION', '__version__', '__version_info__',
-    'get_version_string', 'get_package_version', 'is_release',
+    '__version__',
+    '__version_info__',
+    'SpyAgency',
+    'VERSION',
+    'get_package_version',
+    'get_version_string',
+    'is_release',
+    'spy_on',
 ]

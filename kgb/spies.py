@@ -9,6 +9,7 @@ from kgb.errors import (ExistingSpyError,
                         InternalKGBError)
 from kgb.pycompat import iteritems, iterkeys, pyver, text_type
 from kgb.signature import FunctionSig, _UNSET_ARG
+from kgb.utils import is_attr_defined_on_ancestor
 
 
 class SpyCall(object):
@@ -188,6 +189,11 @@ class FunctionSpy(object):
         what it returned, and adding methods and state onto the function
         for callers to access in order to get those results.
 
+        Version Added:
+            5.0:
+            Added support for specifying an instance in ``owner`` when spying
+            on bound methods using decorators that return plain functions.
+
         Args:
             agency (kgb.agency.SpyAgency):
                 The spy agency that manages this spy.
@@ -203,6 +209,17 @@ class FunctionSpy(object):
                 invoked. If ``False``, no function will be called.
 
                 This is ignored if ``call_fake`` is provided.
+
+            owner (type or object, optional):
+                The owner of the function or method.
+
+                If spying on an unbound method, this **must** be set to the
+                class that owns it.
+
+                If spying on a bound method that identifies as a plain
+                function (which may happen if the method is decorated and
+                dynamically returns a new function on access), this should
+                be the instance of the object you're spying on.
         """
         # Check the parameters passed to make sure that invalid data wasn't
         # provided.
@@ -244,13 +261,28 @@ class FunctionSpy(object):
                         'The owner passed does not match the actual owner of '
                         'the bound method.')
 
+        if (self._sig.is_slippery and
+            self.func_type == self.TYPE_UNBOUND_METHOD):
+            raise ValueError('Unable to spies on unbound slippery methods '
+                             '(those that return a new function on each '
+                             'attribute access). Please spy on an instance '
+                             'instead.')
+
         if (self.owner is not None and
             (not inspect.isclass(self.owner) or
-             any(
-                inspect.isclass(parent_cls) and
-                hasattr(parent_cls, self.func_name)
-                for parent_cls in self.owner.__bases__
-             ))):
+             self._sig.is_slippery or
+             is_attr_defined_on_ancestor(self.owner, self.func_name))):
+            # We need to store the original attribute value for the function,
+            # as defined in the class that owns it. That may be the provided
+            # or calculated owner, or a parent of it.
+            #
+            # This is needed because the function provided may not actually be
+            # what's defined on the class. What's defined might be a decorator
+            # that returns a function, and it might not even be the same
+            # function each time it's accessed.
+            self._owner_func_attr_value = \
+                self.owner.__dict__.get(self.func_name)
+
             # Construct a replacement function for this method, and
             # re-assign it to the owner. We do this in order to prevent
             # two spies on the same method on two separate instances
@@ -268,6 +300,8 @@ class FunctionSpy(object):
                                  types.MethodType(real_func, self.owner))
             else:
                 self._set_method(self.owner, self.func_name, real_func)
+        else:
+            self._owner_func_attr_value = self.orig_func
 
         # If call_fake was provided, check that it's valid and has a
         # compatible function signature.
@@ -543,7 +577,8 @@ class FunctionSpy(object):
         setattr(self._real_func, FunctionSig.FUNC_CODE_ATTR, self._old_code)
 
         if self.owner is not None:
-            self._set_method(self.owner, self.func_name, self.orig_func)
+            self._set_method(self.owner, self.func_name,
+                             self._owner_func_attr_value)
 
         if unregister:
             self.agency.spies.remove(self)
@@ -799,7 +834,21 @@ class FunctionSpy(object):
             result = None
         else:
             try:
-                result = self.func(*args, **kwargs)
+                if self._sig.has_getter:
+                    # This isn't a standard function. It's a descriptor with
+                    # a __get__() method. We need to fetch the value it
+                    # returns.
+                    result = self._sig.defined_func.__get__(self.owner)
+
+                    if self._sig.is_slippery:
+                        # Since we know this represents a slippery function,
+                        # we need to take the function from the descriptor's
+                        # result and call it.
+                        result = result(*args, **kwargs)
+                else:
+                    # This is a typical function/method. We can call it
+                    # directly.
+                    result = self.func(*args, **kwargs)
             except Exception as e:
                 call.exception = e
                 raise
@@ -882,11 +931,17 @@ class FunctionSpy(object):
     def _set_method(self, owner, name, method):
         """Set a new method on an object.
 
-        This will set the method using a standard :py:func:`setattr` if
-        working on a class, or using :py:meth:`object.__setattr__` if working
-        on an instance (in order to avoid triggering a subclass-defined version
-        of :py:meth:`~object.__setattr__`, which might lose or override our
-        spy).
+        This will set the method (or delete the attribute for one if setting
+        ``None``).
+
+        If setting on a class, this will use a standard
+        :py:func:`setattr`/:py:func:`delattr`.
+
+        If setting on an instance, this will use a standard
+        :py:meth:`object.__setattr__`/:py:meth:`object.__delattr__` (in order
+        to avoid triggering a subclass-defined version of
+        :py:meth:`~object.__setattr__`/:py:meth:`~object.__delattr__`, which
+        might lose or override our spy).
 
         Args:
             owner (type or object):
@@ -896,17 +951,28 @@ class FunctionSpy(object):
                 The name of the attribute to set for the method.
 
             method (types.MethodType):
-                The method to set.
+                The method to set (or ``None`` to delete).
         """
         if inspect.isclass(owner):
-            setattr(owner, name, method)
+            if method is None:
+                delattr(owner, name)
+            else:
+                setattr(owner, name, method)
+        elif method is None:
+            try:
+                object.__delattr__(owner, name)
+            except TypeError as e:
+                if str(e) == "can't apply this __delattr__ to instance object":
+                    # This is likely Python 2.6, or early 2.7, where we can't
+                    # run object.__delattr__ on old-style classes. We have to
+                    # fall back to modifying __dict__. It's not ideal but
+                    # doable.
+                    del owner.__dict__[name]
         else:
             try:
                 object.__setattr__(owner, name, method)
             except TypeError as e:
                 if str(e) == "can't apply this __setattr__ to instance object":
-                    # This is likely Python 2.6, or early 2.7, where we can't
-                    # run object.__setattr__ on old-style classes. We have to
-                    # fall back to modifying __dict__. It's not ideal but
-                    # doable.
+                    # Similarly as above, we have to default to dict
+                    # manipulation on this version of Python.
                     owner.__dict__[name] = method

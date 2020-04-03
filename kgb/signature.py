@@ -5,8 +5,10 @@ from __future__ import unicode_literals
 import inspect
 import logging
 import sys
+import types
 
 from kgb.errors import InternalKGBError
+from kgb.utils import get_defined_attr_value
 
 
 logger = logging.getLogger('kgb')
@@ -25,6 +27,9 @@ class _UnsetArg(object):
         return '_UNSET_ARG'
 
 
+_UNSET_ARG = _UnsetArg()
+
+
 class BaseFunctionSig(object):
     """Base class for a function signature introspector.
 
@@ -35,6 +40,43 @@ class BaseFunctionSig(object):
 
     How this is all done depends entirely on the version of Python. Subclasses
     must implement all this logic.
+
+    Version Changed:
+        5.0:
+        Added support for the following attributes:
+
+        * :py:attr:`defined_func`.
+        * :py:attr:`has_getter`.
+        * :py:attr:`has_setter`.
+        * :py:attr:`is_slippery`.
+
+    Attributes:
+        defined_func (callable or object):
+            The actual function (or wrapping object) that's defined on
+            somewhere in the owner's class hierarchy (or the function itself if
+            this is a standalone function). This may differ from
+            :py:attr:`func`.
+
+        has_getter (bool):
+            Whether this signature represents a descriptor with a ``__get__``
+            method.
+
+        has_setter (bool):
+            Whether this signature represents a descriptor with a ``__set__``
+            method.
+
+        is_slippery (bool):
+            Whether this represents a slippery function. This is a method on
+            a class that returns a different function every time its attribute
+            is accessed on an instance.
+
+            This occurs when a method decorator is used that wraps a function
+            on access and returns the wrapper function, but does not cache the
+            wrapper function. These are returned as standard functions and
+            not methods.
+
+            Slippery functions can only be detected when an explicit owner is
+            provided.
     """
 
     #: The signature represents a standard function.
@@ -50,17 +92,18 @@ class BaseFunctionSig(object):
     #: Unbound methods are standard methods on a class.
     TYPE_UNBOUND_METHOD = 2
 
-    def __init__(self, func, owner=None):
+    def __init__(self, func, owner=_UNSET_ARG):
         """Initialize the signature.
 
         Subclasses must override this to parse function types/ownership and
-        available arguments.
+        available arguments. They must call :py:meth:`finalize_state` once
+        they've calculated all signature state.
 
         Args:
             func (callable):
                 The function to use for the signature.
 
-            owner (type, optional):
+            owner (type or object, optional):
                 The owning class, as provided when spying on the function.
                 This is not stored directly (as it may be invalid), but can
                 be used for informative purposes for subclasses.
@@ -82,6 +125,9 @@ class BaseFunctionSig(object):
         self.kwarg_names = []
         self.args_param_name = []
         self.kwargs_param_name = []
+        self.is_slippery = False
+        self.has_getter = False
+        self.has_setter = False
 
     def is_compatible_with(self, other_sig):
         """Return whether two function signatures are compatible.
@@ -202,6 +248,34 @@ class BaseFunctionSig(object):
         """
         raise NotImplementedError
 
+    def finalize_state(self):
+        """Finalize the state for the signature.
+
+        This will set any remaining values for the signature based on the
+        calculations already performed by the subclasses. This must be called
+        at the end of a subclass's :py:meth:`__init__`.
+        """
+        if self.owner is None:
+            self.defined_func = self.func
+        else:
+            try:
+                self.defined_func = get_defined_attr_value(self.owner,
+                                                           self.func_name)
+            except AttributeError:
+                # This was a dynamically-injected function. We won't find it
+                # in the class hierarchy. Use the provided function instead.
+                self.defined_func = self.func
+
+        if not isinstance(self.defined_func, (types.FunctionType,
+                                              types.MethodType,
+                                              classmethod,
+                                              staticmethod)):
+            if hasattr(self.defined_func, '__get__'):
+                self.has_getter = True
+
+            if hasattr(self.defined_func, '__set__'):
+                self.has_setter = True
+
 
 class FunctionSigPy2(BaseFunctionSig):
     """Function signature introspector for Python 2.
@@ -217,7 +291,7 @@ class FunctionSigPy2(BaseFunctionSig):
     FUNC_NAME_ATTR = 'func_name'
     METHOD_SELF_ATTR = 'im_self'
 
-    def __init__(self, func, owner=None):
+    def __init__(self, func, owner=_UNSET_ARG):
         """Initialize the signature.
 
         Subclasses must override this to parse function types/ownership and
@@ -229,13 +303,23 @@ class FunctionSigPy2(BaseFunctionSig):
 
             owner (type, optional):
                 The owning class, as provided when spying on the function.
-                The value is ignored for Python 2.
+                The value is ignored for methods on which an owner can be
+                calculated, favoring the calculated value instead.
         """
         super(FunctionSigPy2, self).__init__(func=func,
                                              owner=owner)
 
+        func_name = self.func_name
+
         # Figure out the owner and method type.
         if inspect.ismethod(func):
+            # This is a bound or unbound method. If it's unbound, and an
+            # owner is not specified, we're going to need to warn the user,
+            # since things are going to break on Python 3.
+            #
+            # Otherwise, we're going to determine the bound vs. unbound type
+            # and use the owner specified by the method. (The provided owner
+            # will be validated in FunctionSpy.)
             method_owner = func.im_self
 
             if method_owner is None:
@@ -251,6 +335,30 @@ class FunctionSigPy2(BaseFunctionSig):
             else:
                 self.func_type = self.TYPE_BOUND_METHOD
                 self.owner = method_owner
+        elif owner is not _UNSET_ARG:
+            # This is a standard function, but an owner (as an instance) has
+            # been provided. Find out if the owner has this function (either
+            # the actual instance or one with the same name and bytecode),
+            # and if so, treat this as a bound method.
+            #
+            # This is necessary when trying to spy on a decorated method that
+            # generates functions dynamically (using something like
+            # functools.wraps). We call these "slippery functions." A
+            # real-world example is something like Stripe's
+            # stripe.Customer.delete() method, which is a different function
+            # every time you call it.
+            owner_func = getattr(owner, func_name, None)
+
+            if (owner_func is not None and
+                (owner_func is func or
+                 owner_func.func_code is func.func_code)):
+                if inspect.isclass(owner):
+                    self.func_type = self.TYPE_UNBOUND_METHOD
+                else:
+                    self.func_type = self.TYPE_BOUND_METHOD
+
+                self.owner = owner
+                self.is_slippery = owner_func is not func
 
         # Load information on the arguments.
         argspec = inspect.getargspec(func)
@@ -271,6 +379,8 @@ class FunctionSigPy2(BaseFunctionSig):
         self.args_param_name = argspec.varargs
         self.kwargs_param_name = argspec.keywords
         self._defaults = argspec.defaults
+
+        self.finalize_state()
 
     def format_forward_call_arg(self, arg_name):
         """Return a string used to reference an argument in a forwarding call.
@@ -324,7 +434,7 @@ class FunctionSigPy3(BaseFunctionSig):
     FUNC_NAME_ATTR = '__name__'
     METHOD_SELF_ATTR = '__self__'
 
-    def __init__(self, func, owner=None):
+    def __init__(self, func, owner=_UNSET_ARG):
         """Initialize the signature.
 
         Subclasses must override this to parse function types/ownership and
@@ -336,7 +446,7 @@ class FunctionSigPy3(BaseFunctionSig):
 
             owner (type, optional):
                 The owning class, as provided when spying on the function.
-                This is used only when spying on unbound methods.
+                This is used only when spying on unbound or slippery methods.
         """
         super(FunctionSigPy3, self).__init__(func=func,
                                              owner=owner)
@@ -347,6 +457,8 @@ class FunctionSigPy3(BaseFunctionSig):
                 'which is needed in order to generate a Signature from a '
                 'function.'
                 % sys.version_info[:2])
+
+        func_name = self.func_name
 
         # Figure out the owner and method type.
         #
@@ -372,7 +484,12 @@ class FunctionSigPy3(BaseFunctionSig):
         elif '.' in func.__qualname__:
             if owner is not _UNSET_ARG:
                 self.owner = owner
-                self.func_type = self.TYPE_UNBOUND_METHOD
+                self.is_slippery = getattr(owner, func_name) is not func
+
+                if owner is _UNSET_ARG or inspect.isclass(owner):
+                    self.func_type = self.TYPE_UNBOUND_METHOD
+                else:
+                    self.func_type = self.TYPE_BOUND_METHOD
             elif '<locals>' in func.__qualname__:
                 # We can only assume this is a function. It might not be.
                 self.func_type = self.TYPE_FUNCTION
@@ -439,6 +556,8 @@ class FunctionSigPy3(BaseFunctionSig):
         self.kwarg_names = kwargs
         self._sig = sig
 
+        self.finalize_state()
+
     def format_forward_call_arg(self, arg_name):
         """Return a string used to reference an argument in a forwarding call.
 
@@ -500,6 +619,3 @@ elif sys.version_info[0] == 3:
     FunctionSig = FunctionSigPy3
 else:
     raise Exception('Unsupported Python version')
-
-
-_UNSET_ARG = _UnsetArg()

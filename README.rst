@@ -186,16 +186,16 @@ Check a specific call
 .. code-block:: python
 
     # Check the latest call...
-    print obj.function.last_call.args
-    print obj.function.last_call.kwargs
-    print obj.function.last_call.return_value
-    print obj.function.last_call.exception
+    print(obj.function.last_call.args)
+    print(obj.function.last_call.kwargs)
+    print(obj.function.last_call.return_value)
+    print(obj.function.last_call.exception)
 
     # For an older call...
-    print obj.function.calls[0].args
-    print obj.function.calls[0].kwargs
-    print obj.function.calls[0].return_value
-    print obj.function.calls[0].exception
+    print(obj.function.calls[0].args)
+    print(obj.function.calls[0].kwargs)
+    print(obj.function.calls[0].return_value)
+    print(obj.function.calls[0].exception)
 
 
 Also a good way of knowing whether it's even been called. ``last_call`` will
@@ -207,7 +207,13 @@ Check if the function was ever called
 
 .. code-block:: python
 
+    # Either one of these is fine.
+    self.assertSpyCalled(obj.function)
     self.assertTrue(obj.function.called)
+
+    # Or the inverse:
+    self.assertSpyNotCalled(obj.function)
+    self.assertFalse(obj.function.called)
 
 
 If the function was ever called at all, this will let you know.
@@ -219,12 +225,15 @@ Check if the function was ever called with certain arguments
 .. code-block:: python
 
     # Check if it was ever called with these arguments...
+    self.assertSpyCalledWith(obj.function, 'foo', bar='baz')
     self.assertTrue(obj.function.called_with('foo', bar='baz'))
 
     # Check a specific call...
+    self.assertSpyCalledWith(obj.function.calls[0], 'foo', bar='baz')
     self.assertTrue(obj.function.calls[0].called_with('foo', bar='baz'))
 
     # Check the last call...
+    self.assertSpyLastCalledWith(obj.function, 'foo', bar='baz')
     self.assertTrue(obj.function.last_called_with('foo', bar='baz'))
 
 
@@ -243,12 +252,15 @@ Check if the function ever returned a certain value
 .. code-block:: python
 
     # Check if the function ever returned a certain value...
+    self.assertSpyReturned(obj.function, 42)
     self.assertTrue(obj.function.returned(42))
 
     # Check a specific call...
+    self.assertSpyReturned(obj.function.calls[0], 42)
     self.assertTrue(obj.function.calls[0].returned(42))
 
     # Check the last call...
+    self.assertSpyLastReturned(obj.function, 42)
     self.assertTrue(obj.function.last_returned(42))
 
 
@@ -262,12 +274,15 @@ Check if a function ever raised a certain type of exception
 .. code-block:: python
 
     # Check if the function ever raised a certain exception...
+    self.assertSpyRaised(obj.function, TypeError)
     self.assertTrue(obj.function.raised(TypeError))
 
     # Check a specific call...
+    self.assertSpyRaised(obj.function.calls[0], TypeError)
     self.assertTrue(obj.function.calls[0].raised(TypeError))
 
     # Check the last call...
+    self.assertSpyLastRaised(obj.function, TypeError)
     self.assertTrue(obj.function.last_raised(TypeError))
 
 
@@ -276,16 +291,28 @@ You can also go a step further by checking the exception's message.
 .. code-block:: python
 
     # Check if the function ever raised an exception with a given message...
+    self.assertSpyRaisedWithMessage(
+        obj.function,
+        TypeError,
+        "'type' object is not iterable")
     self.assertTrue(obj.function.raised_with_message(
         TypeError,
         "'type' object is not iterable"))
 
     # Check a specific call...
+    self.assertSpyRaisedWithMessage(
+        obj.function.calls[0],
+        TypeError,
+        "'type' object is not iterable")
     self.assertTrue(obj.function.calls[0].raised_with_message(
         TypeError,
         "'type' object is not iterable"))
 
     # Check the last call...
+    self.assertSpyLastRaisedWithMessage(
+        obj.function,
+        TypeError,
+        "'type' object is not iterable")
     self.assertTrue(obj.function.last_raised_with_message(
         TypeError,
         "'type' object is not iterable"))

@@ -1,3 +1,52 @@
+version 5.0 final (10-April-2020):
+	* Added support for Python 3.8.
+
+	  Functions with positional-only arguments on Python 3.8 will now work
+	  correctly, and the positional-only arguments will factor into any
+	  spy matching.
+
+	* Added several new unit test assertion methods:
+
+	  * assertHasSpy
+	  * assertSpyCalled
+	  * assertSpyNotCalled
+	  * assertSpyCallCount
+	  * assertSpyCalledWith
+	  * assertSpyLastCalledWith
+	  * assertSpyReturned
+	  * assertSpyLastReturned
+	  * assertSpyRaised
+	  * assertSpyLastRaised
+	  * assertSpyRaisedMessage
+	  * assertSpyLastRaisedMessage
+
+	  We recommend using these for unit tests instead of checking individual
+	  properties of calls, as they'll provide better output and help you find
+	  out why spies have gone rogue.
+
+	* Added support for spying on "slippery" functions.
+
+	  A slippery function is defined (by us) as a function on an object that is
+	  actually a different function every time you access it. In other words,
+	  if you were to just reference a slippery function as an attribute two
+	  times, you'd end up with two separate copies of that function, each
+	  with their own ID.
+
+	  This can happen if the "function" is actually some decorator that returns
+	  a new function every time it's accessed. A real-world example would be
+	  the Python Stripe module's API functions, like stripe.Customer.delete.
+
+	  In previous versions of KGB, you wouldn't be able to spy on these
+	  functions. With 5.0, you can spy on them just fine by passing
+	  owner=<instance> when setting up the spy:
+
+	      spy_on(myobj.slippery_func,
+	             owner=myobj)
+
+	* Lots of internal changes to help keep the codebase organized and
+	  manageable, as Python support increases.
+
+
 version 4.0 final (30-July-2019):
 	* Added call_original(), which calls the original spied-on function.
 

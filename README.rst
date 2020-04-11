@@ -364,7 +364,7 @@ Doesn't this just do what mock does?
 kgb's spies and mock_'s patching are very different from each other. When
 patching using mock, you're simply replacing a method on a class with
 something that looks like a method, and that works great except you're limited
-to methods on classes. You can't override something a top-level function, like
+to methods on classes. You can't override a top-level function, like
 ``urllib2.urlopen``.
 
 kgb spies leave the function or method where it is. What it *does* do is

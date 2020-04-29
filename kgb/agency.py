@@ -103,7 +103,7 @@ class SpyAgency(object):
         for spy in self.spies:
             spy.unspy(unregister=False)
 
-        self.spies = []
+        self.spies.clear()
 
     def assertHasSpy(self, spy):
         """Assert that a function has a spy.

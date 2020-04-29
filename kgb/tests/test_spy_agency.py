@@ -46,7 +46,7 @@ class SpyAgencyTests(TestCase):
         self.assertTrue(hasattr(MathClass.class_do_math, 'spy'))
 
         self.agency.unspy_all()
-        self.assertEqual(self.agency.spies, [])
+        self.assertEqual(self.agency.spies, set())
 
         self.assertEqual(obj.do_math, orig_do_math)
         self.assertEqual(MathClass.class_do_math, self.orig_class_do_math)

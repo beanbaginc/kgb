@@ -268,7 +268,7 @@ class FunctionSpy(object):
         # functions, so check for that and bail early.
         if (sig.is_slippery and
             self.func_type == self.TYPE_UNBOUND_METHOD):
-            raise ValueError('Unable to spies on unbound slippery methods '
+            raise ValueError('Unable to spy on unbound slippery methods '
                              '(those that return a new function on each '
                              'attribute access). Please spy on an instance '
                              'instead.')

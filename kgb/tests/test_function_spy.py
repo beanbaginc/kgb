@@ -298,7 +298,7 @@ class FunctionSpyTests(TestCase):
 
         self.assertEqual(
             text_type(cm.exception),
-            'Unable to spies on unbound slippery methods (those that return '
+            'Unable to spy on unbound slippery methods (those that return '
             'a new function on each attribute access). Please spy on an '
             'instance instead.')
 

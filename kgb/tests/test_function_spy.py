@@ -6,8 +6,8 @@ import re
 import types
 
 from kgb.errors import ExistingSpyError, IncompatibleFunctionError
+from kgb.pycompat import text_type
 from kgb.signature import FunctionSig
-from kgb.spies import text_type
 from kgb.tests.base import MathClass, TestCase
 
 

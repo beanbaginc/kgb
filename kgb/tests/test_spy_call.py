@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 
-from kgb.spies import text_type
+from kgb.pycompat import text_type
 from kgb.tests.base import MathClass, TestCase
 
 

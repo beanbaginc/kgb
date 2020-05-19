@@ -3,10 +3,11 @@
 from __future__ import unicode_literals
 
 from pprint import pformat
+from unittest.util import safe_repr
 
+from kgb.pycompat import iteritems
 from kgb.signature import _UNSET_ARG
 from kgb.spies import FunctionSpy, SpyCall
-from unittest.util import safe_repr
 
 
 class SpyAgency(object):
@@ -161,8 +162,8 @@ class SpyAgency(object):
                 The function did not have a spy.
         """
         if not hasattr(spy, 'spy') and not isinstance(spy, FunctionSpy):
-            self.fail('%s has not been spied on.'
-                      % self._format_spy_or_call(spy))
+            self._kgb_assert_fail('%s has not been spied on.'
+                                  % self._format_spy_or_call(spy))
 
     def assertSpyCalled(self, spy):
         """Assert that a function has been called at least once.
@@ -180,7 +181,8 @@ class SpyAgency(object):
         self.assertHasSpy(spy)
 
         if not spy.called:
-            self.fail('%s was not called.' % self._format_spy_or_call(spy))
+            self._kgb_assert_fail('%s was not called.'
+                                  % self._format_spy_or_call(spy))
 
     def assertSpyNotCalled(self, spy):
         """Assert that a function has not been called.
@@ -211,7 +213,7 @@ class SpyAgency(object):
                     % (self._format_spy_or_call(spy), call_count)
                 )
 
-            self.fail(
+            self._kgb_assert_fail(
                 '%s\n'
                 '\n'
                 '%s'
@@ -247,8 +249,10 @@ class SpyAgency(object):
             else:
                 msg = '%s was called %d times, not %d.'
 
-            self.fail(msg % (self._format_spy_or_call(spy), call_count,
-                             count))
+            self._kgb_assert_fail(msg %
+                                  (self._format_spy_or_call(spy),
+                                   call_count,
+                                   count))
 
     def assertSpyCalledWith(self, spy_or_call, *expected_args,
                             **expected_kwargs):
@@ -277,7 +281,7 @@ class SpyAgency(object):
 
         if not spy_or_call.called_with(*expected_args, **expected_kwargs):
             if isinstance(spy_or_call, SpyCall):
-                self.fail(
+                self._kgb_assert_fail(
                     'This call to %s was not passed args=%s, kwargs=%s.\n'
                     '\n'
                     'It was called with:\n'
@@ -286,11 +290,11 @@ class SpyAgency(object):
                     % (
                         self._format_spy_or_call(spy_or_call),
                         safe_repr(expected_args),
-                        safe_repr(expected_kwargs),
+                        self._format_spy_kwargs(expected_kwargs),
                         self._format_spy_call_args(spy_or_call),
                     ))
             else:
-                self.fail(
+                self._kgb_assert_fail(
                     'No call to %s was passed args=%s, kwargs=%s.\n'
                     '\n'
                     'The following calls were recorded:\n'
@@ -299,7 +303,7 @@ class SpyAgency(object):
                     % (
                         self._format_spy_or_call(spy_or_call),
                         safe_repr(expected_args),
-                        safe_repr(expected_kwargs),
+                        self._format_spy_kwargs(expected_kwargs),
                         self._format_spy_calls(
                             spy_or_call,
                             self._format_spy_call_args),
@@ -327,7 +331,7 @@ class SpyAgency(object):
         self.assertSpyCalled(spy)
 
         if not spy.last_called_with(*expected_args, **expected_kwargs):
-            self.fail(
+            self._kgb_assert_fail(
                 'The last call to %s was not passed args=%s, kwargs=%s.\n'
                 '\n'
                 'It was last called with:\n'
@@ -336,7 +340,7 @@ class SpyAgency(object):
                 % (
                     self._format_spy_or_call(spy),
                     safe_repr(expected_args),
-                    safe_repr(expected_kwargs),
+                    self._format_spy_kwargs(expected_kwargs),
                     self._format_spy_call_args(spy.last_call),
                 ))
 
@@ -364,7 +368,7 @@ class SpyAgency(object):
 
         if not spy_or_call.returned(return_value):
             if isinstance(spy_or_call, SpyCall):
-                self.fail(
+                self._kgb_assert_fail(
                     'This call to %s did not return %s.\n'
                     '\n'
                     'It returned:\n'
@@ -376,7 +380,7 @@ class SpyAgency(object):
                         self._format_spy_call_returned(spy_or_call),
                     ))
             else:
-                self.fail(
+                self._kgb_assert_fail(
                     'No call to %s returned %s.\n'
                     '\n'
                     'The following values have been returned:\n'
@@ -409,7 +413,7 @@ class SpyAgency(object):
         self.assertSpyCalled(spy)
 
         if not spy.last_returned(return_value):
-            self.fail(
+            self._kgb_assert_fail(
                 'The last call to %s did not return %s.\n'
                 '\n'
                 'It last returned:\n'
@@ -446,7 +450,7 @@ class SpyAgency(object):
         if not spy_or_call.raised(exception_cls):
             if isinstance(spy_or_call, SpyCall):
                 if spy_or_call.exception is not None:
-                    self.fail(
+                    self._kgb_assert_fail(
                         'This call to %s did not raise %s. It raised %s.'
                         % (
                             self._format_spy_or_call(spy_or_call),
@@ -454,8 +458,9 @@ class SpyAgency(object):
                             self._format_spy_call_raised(spy_or_call),
                         ))
                 else:
-                    self.fail('This call to %s did not raise an exception.'
-                              % self._format_spy_or_call(spy_or_call))
+                    self._kgb_assert_fail(
+                        'This call to %s did not raise an exception.'
+                        % self._format_spy_or_call(spy_or_call))
             else:
                 has_raised = any(
                     call.exception is not None
@@ -463,7 +468,7 @@ class SpyAgency(object):
                 )
 
                 if has_raised:
-                    self.fail(
+                    self._kgb_assert_fail(
                         'No call to %s raised %s.\n'
                         '\n'
                         'The following exceptions have been raised:\n\n'
@@ -476,8 +481,9 @@ class SpyAgency(object):
                                 self._format_spy_call_raised),
                         ))
                 else:
-                    self.fail('No call to %s raised an exception.'
-                              % self._format_spy_or_call(spy_or_call))
+                    self._kgb_assert_fail(
+                        'No call to %s raised an exception.'
+                        % self._format_spy_or_call(spy_or_call))
 
     def assertSpyLastRaised(self, spy, exception_cls):
         """Assert that the last function call raised the given exception type.
@@ -500,7 +506,7 @@ class SpyAgency(object):
 
         if not spy.last_raised(exception_cls):
             if spy.last_call.exception is not None:
-                self.fail(
+                self._kgb_assert_fail(
                     'The last call to %s did not raise %s. It last '
                     'raised %s.'
                     % (
@@ -509,8 +515,9 @@ class SpyAgency(object):
                         self._format_spy_call_raised(spy.last_call),
                     ))
             else:
-                self.fail('The last call to %s did not raise an exception.'
-                          % self._format_spy_or_call(spy))
+                self._kgb_assert_fail(
+                    'The last call to %s did not raise an exception.'
+                    % self._format_spy_or_call(spy))
 
     def assertSpyRaisedMessage(self, spy_or_call, exception_cls, message):
         """Assert that a function call raised the given exception/message.
@@ -541,7 +548,7 @@ class SpyAgency(object):
         if not spy_or_call.raised_with_message(exception_cls, message):
             if isinstance(spy_or_call, SpyCall):
                 if spy_or_call.exception is not None:
-                    self.fail(
+                    self._kgb_assert_fail(
                         'This call to %s did not raise %s with message %r.\n'
                         '\n'
                         'It raised:\n'
@@ -555,8 +562,9 @@ class SpyAgency(object):
                                 spy_or_call),
                         ))
                 else:
-                    self.fail('This call to %s did not raise an exception.'
-                              % self._format_spy_or_call(spy_or_call))
+                    self._kgb_assert_fail(
+                        'This call to %s did not raise an exception.'
+                        % self._format_spy_or_call(spy_or_call))
             else:
                 has_raised = any(
                     call.exception is not None
@@ -564,7 +572,7 @@ class SpyAgency(object):
                 )
 
                 if has_raised:
-                    self.fail(
+                    self._kgb_assert_fail(
                         'No call to %s raised %s with message %r.\n'
                         '\n'
                         'The following exceptions have been raised:\n'
@@ -579,8 +587,9 @@ class SpyAgency(object):
                                 self._format_spy_call_raised_with_message),
                         ))
                 else:
-                    self.fail('No call to %s raised an exception.'
-                              % self._format_spy_or_call(spy_or_call))
+                    self._kgb_assert_fail(
+                        'No call to %s raised an exception.'
+                        % self._format_spy_or_call(spy_or_call))
 
     def assertSpyLastRaisedMessage(self, spy, exception_cls, message):
         """Assert that the function last raised the given exception/message.
@@ -606,7 +615,7 @@ class SpyAgency(object):
 
         if not spy.last_raised_with_message(exception_cls, message):
             if spy.last_call.exception is not None:
-                self.fail(
+                self._kgb_assert_fail(
                     'The last call to %s did not raise %s with message %r.\n'
                     '\n'
                     'It last raised:\n'
@@ -620,8 +629,30 @@ class SpyAgency(object):
                             spy.last_call),
                     ))
             else:
-                self.fail('The last call to %s did not raise an exception.'
-                          % self._format_spy_or_call(spy))
+                self._kgb_assert_fail(
+                    'The last call to %s did not raise an exception.'
+                    % self._format_spy_or_call(spy))
+
+    def _kgb_assert_fail(self, msg):
+        """Raise an assertion failure.
+
+        If this class is mixed into a unit test suite, this will call the
+        main :py:meth:`unittest.TestCase.fail` method. Otherwise, it will
+        simply raise an :py:exc:`AssertionError`.
+
+        Args:
+            msg (unicode):
+                The assertion message.
+
+        Raises:
+            AssertionError:
+                The assertion error to raise.
+        """
+        if hasattr(self, 'fail') and hasattr(self, 'failureException'):
+            # This is likely mixed in to a unit test.
+            self.fail(msg)
+        else:
+            raise AssertionError(msg)
 
     def _format_spy_or_call(self, spy_or_call):
         """Format a spy or call for output in an assertion message.
@@ -797,3 +828,24 @@ class SpyAgency(object):
             ]
 
         return '\n'.join(lines)
+
+    def _format_spy_kwargs(self, kwargs):
+        """Format keyword arguments.
+
+        This will convert all keys to native strings, to help with showing
+        more reasonable output that's consistent. The keys will also be
+        provided in sorted order.
+
+        Args:
+            kwargs (dict):
+                The dictionary of keyword arguments.
+
+        Returns:
+            unicode:
+            The formatted string representation.
+        """
+        return safe_repr(dict(
+            (str(key), value)
+            for key, value in sorted(iteritems(kwargs),
+                                     key=lambda pair: pair[0])
+        ))

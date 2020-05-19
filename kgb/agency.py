@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 
 from pprint import pformat
 
+from kgb.signature import _UNSET_ARG
 from kgb.spies import FunctionSpy, SpyCall
 from unittest.util import safe_repr
 
@@ -77,6 +78,46 @@ class SpyAgency(object):
         spy = FunctionSpy(self, *args, **kwargs)
         self.spies.add(spy)
         return spy
+
+    def spy_for(self, func, owner=_UNSET_ARG):
+        """Decorate a function that should be a spy for another function.
+
+        This is a convenience over declaring a function and using
+        :py:meth:`spy_on` with ``call_fake=``. It's used to quickly and
+        easily create a fake function spy for another function.
+
+        Version Added:
+            6.0
+
+        Args:
+            func (callable):
+                The function or method to spy on.
+
+            owner (type or object, optional):
+                The owner of the function or method.
+
+                If spying on an unbound method, this **must** be set to the
+                class that owns it.
+
+                If spying on a bound method that identifies as a plain
+                function (which may happen if the method is decorated and
+                dynamically returns a new function on access), this should
+                be the instance of the object you're spying on.
+
+        Example:
+            @self.spy_for(get_doomsday):
+            def _fake_get_doomsday():
+                return datetime(year=2038, month=12, day=5,
+                                hour=1, minute=2, second=3)
+        """
+        def _wrap(call_fake):
+            self.spy_on(func,
+                        owner=owner,
+                        call_fake=call_fake)
+
+            return call_fake
+
+        return _wrap
 
     def unspy(self, func):
         """Stop spying on a function.

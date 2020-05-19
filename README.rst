@@ -95,7 +95,31 @@ all over the place, discretely, without resorting to a separate agency.
             self.spy_on(weather.start_raining)
 
 
-3. Using a context manager
+3. Using a decorator
+--------------------
+
+If you're creating a spy that calls a fake function, you can simplify some
+things by using the ``spy_for`` decorator:
+
+
+.. code-block:: python
+
+    from kgb import SpyAgency
+
+
+    class TopSecretTests(SpyAgency, unittest.TestCase):
+        def test_doomsday_device(self):
+            dd = DoomsdayDevice()
+
+            @self.spy_for(dd.kaboom)
+            def _save_world(*args, **kwargs)
+                print('Sprinkles and ponies!')
+
+            # Give it your best shot, doomsday device.
+            dd.kaboom()
+
+
+4. Using a context manager
 --------------------------
 
 If you just want a spy for a quick job, without all that hassle of a full
@@ -151,10 +175,18 @@ Creating a spy that reroutes to a fake function
 
 .. code-block:: python
 
+    def _my_fake_function(some_param, *args, **kwargs):
+        ...
+
     agency.spy_on(obj.function, call_fake=my_fake_function)
 
+    # Or, in KGB 6+
+    @agency.spy_for(obj.function)
+    def _my_fake_function(some_param, *args, **kwargs):
+        ...
 
-Fake return values or operations without anybody knowing.
+
+Fake the return values or operations without anybody knowing.
 
 
 Stopping a spy operation
@@ -337,22 +369,21 @@ Call the original function
     result = obj.function.call_original('foo', bar='baz')
 
 
-Super, super useful if you want to use ``call_fake=`` to wrap a function
-and track or influence some part of it, but still want the original function
-to do its thing. For instance:
+Super, super useful if you want to use ``call_fake=`` or ``@agency.spy_for``
+to wrap a function and track or influence some part of it, but still want the
+original function to do its thing. For instance:
 
 .. code-block:: python
 
     stored_results = []
 
+    @agency.spy_for(obj.function)
     def my_fake_function(*args, **kwargs):
         kwargs['bar'] = 'baz'
         result = obj.function.call_original(*args, **kwargs)
         stored_results.append(result)
 
         return result
-
-    agency.spy_on(obj.function, call_fake=my_fake_function)
 
 
 FAQ

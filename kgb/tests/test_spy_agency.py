@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 from contextlib import contextmanager
 
 from kgb.agency import SpyAgency
+from kgb.signature import FunctionSig
 from kgb.tests.base import MathClass, TestCase
 
 
@@ -17,6 +18,25 @@ class SpyAgencyTests(TestCase):
 
         spy = self.agency.spy_on(obj.do_math)
         self.assertEqual(self.agency.spies, set([spy]))
+
+    def test_spy_for(self):
+        """Testing SpyAgency.spy_for"""
+        obj = MathClass()
+
+        @self.agency.spy_for(obj.do_math, owner=obj)
+        def my_func(_self, a=None, b=None, *args, **kwargs):
+            """Some docs."""
+            return 123
+
+        self.assertEqual(obj.do_math(), 123)
+        self.assertEqual(my_func(obj), 123)
+        self.assertIs(obj.do_math.spy.func, my_func)
+
+        # Make sure we decorated correctly.
+        sig = FunctionSig(my_func)
+        self.assertEqual(sig.func_name, 'my_func')
+        self.assertEqual(sig.func_type, FunctionSig.TYPE_FUNCTION)
+        self.assertEqual(my_func.__doc__, 'Some docs.')
 
     def test_unspy(self):
         """Testing SpyAgency.unspy"""
@@ -66,6 +86,25 @@ class TestCaseMixinTests(SpyAgency, TestCase):
 
         result = obj.do_math()
         self.assertEqual(result, 3)
+
+    def test_spy_for(self):
+        """Testing SpyAgency mixed in with spy_for"""
+        obj = MathClass()
+
+        @self.spy_for(obj.do_math)
+        def my_func(_self, a=None, b=None, *args, **kwargs):
+            """Some docs."""
+            return 123
+
+        self.assertEqual(obj.do_math(), 123)
+        self.assertEqual(my_func(obj), 123)
+        self.assertIs(obj.do_math.spy.func, my_func)
+
+        # Make sure we decorated correctly.
+        sig = FunctionSig(my_func)
+        self.assertEqual(sig.func_name, 'my_func')
+        self.assertEqual(sig.func_type, FunctionSig.TYPE_FUNCTION)
+        self.assertEqual(my_func.__doc__, 'Some docs.')
 
     def test_tear_down(self):
         """Testing SpyAgency mixed in with tearDown"""

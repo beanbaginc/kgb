@@ -844,8 +844,8 @@ class SpyAgency(object):
             unicode:
             The formatted string representation.
         """
-        return safe_repr(dict(
-            (str(key), value)
+        return '{%s}' % ', '.join(
+            '%s: %s' % (safe_repr(str(key)), safe_repr(value))
             for key, value in sorted(iteritems(kwargs),
                                      key=lambda pair: pair[0])
-        ))
+        )

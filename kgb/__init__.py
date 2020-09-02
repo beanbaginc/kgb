@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 from kgb.agency import SpyAgency
 from kgb.contextmanagers import spy_on
+from kgb.ops import SpyOpMatchAny, SpyOpMatchInOrder, SpyOpRaise, SpyOpReturn
 
 
 # The version of kgb
@@ -55,6 +56,10 @@ __all__ = [
     '__version__',
     '__version_info__',
     'SpyAgency',
+    'SpyOpMatchAny',
+    'SpyOpMatchInOrder',
+    'SpyOpRaise',
+    'SpyOpReturn',
     'VERSION',
     'get_package_version',
     'get_version_string',

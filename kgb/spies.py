@@ -58,7 +58,7 @@ class FunctionSpy(object):
     _spy_map = {}
 
     def __init__(self, agency, func, call_fake=None, call_original=True,
-                 owner=_UNSET_ARG):
+                 op=None, owner=_UNSET_ARG):
         """Initialize the spy.
 
         This will begin spying on the provided function or method, injecting
@@ -81,11 +81,18 @@ class FunctionSpy(object):
             call_fake (callable, optional):
                 The optional function to call when this function is invoked.
 
+                This cannot be specified if ``op`` is provided.
+
             call_original (bool, optional):
                 Whether to call the original function when the spy is
                 invoked. If ``False``, no function will be called.
 
-                This is ignored if ``call_fake`` is provided.
+                This is ignored if ``call_fake`` or ``op`` are provided.
+
+            op (kgb.spies.BaseOperation, optional):
+                An operation to perform.
+
+                This cannot be specified if ``call_fake`` is provided.
 
             owner (type or object, optional):
                 The owner of the function or method.
@@ -104,6 +111,9 @@ class FunctionSpy(object):
 
         # Check the parameters passed to make sure that invalid data wasn't
         # provided.
+        if op is not None and call_fake is not None:
+            raise ValueError('op and call_fake cannot both be provided.')
+
         if hasattr(func, 'spy'):
             raise ExistingSpyError(func)
 
@@ -152,6 +162,13 @@ class FunctionSpy(object):
 
         # If call_fake was provided, check that it's valid and has a
         # compatible function signature.
+        if op is not None:
+            # We've already checked this above, but check it again.
+            assert call_fake is None
+
+            call_fake = op.setup(self)
+            assert call_fake is not None
+
         if call_fake is not None:
             if not callable(call_fake):
                 raise ValueError('%r cannot be used for call_fake. It does '

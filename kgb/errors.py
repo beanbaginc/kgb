@@ -80,3 +80,7 @@ class IncompatibleFunctionError(ValueError):
                incompatible_func_sig.format_arg_spec(),
                func,
                func_sig.format_arg_spec()))
+
+
+class UnexpectedCallError(AssertionError):
+    """A call was made to a spy that was not expected."""

@@ -386,6 +386,91 @@ original function to do its thing. For instance:
         return result
 
 
+Plan a spy operation
+====================
+
+Why start from scratch when setting up a spy? Let's plan an operation.
+
+(Spy operations are only available in KGB 6 or higher.)
+
+
+Raise an exception when called
+------------------------------
+
+.. code-block:: python
+
+   spy_on(pen.emit_poison, op=kgb.SpyOpRaise(PoisonEmptyError()))
+
+
+Or return a value
+-----------------
+
+.. code-block:: python
+
+   spy_on(our_agent.get_identity, op=kgb.SpyOpReturn('nobody...'))
+
+
+Now for something more complicated.
+
+
+Handle a call based on the arguments used
+-----------------------------------------
+
+If you're dealing with many calls to the same function, you may want to return
+different values or only call the original function depending on which
+arguments were passed in the call. That can be done with a ``SpyOpMatchAny``
+operation.
+
+.. code-block:: python
+
+   spy_on(traps.trigger, op=kgb.SpyOpMatchAny([
+       {
+           'args': ('hallway_lasers',),
+           'call_fake': _send_wolves,
+       },
+       {
+           'args': ('trap_tile',),
+           'call_fake': _spill_hot_oil,
+       },
+       {
+           'args': ('infrared_camera',),
+           'kwargs': {
+               'sector': 'underground_passage',
+           },
+           'call_original': False,
+       },
+   ]))
+
+Any unexpected calls will automatically assert.
+
+
+Or require those calls in a specific order
+------------------------------------------
+
+You can combine that with requiring the calls to be in the order you want
+using ``SpyOpMatchInOrder``.
+
+.. code-block:: python
+
+   spy_on(lockbox.enter_code, op=kgb.SpyOpMatchInOrder([
+       {
+           'args': (1, 2, 3, 4, 5, 6),
+           'call_original': False,
+       },
+       {
+           'args': (9, 0, 2, 1, 0, 0),
+           'call_fake': _start_countdown,
+       },
+       {
+           'args': (4, 8, 15, 16, 23, 42),
+           'kwargs': {
+               'secret_button_pushed': True,
+           },
+           'call_original': True,
+       }
+   ]))
+
+
 FAQ
 ===
 

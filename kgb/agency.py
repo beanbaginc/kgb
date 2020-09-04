@@ -309,6 +309,60 @@ class SpyAgency(object):
                             self._format_spy_call_args),
                     ))
 
+    def assertSpyNotCalledWith(self, spy_or_call, *expected_args,
+                               **expected_kwargs):
+        """Assert that a function was not called with the given arguments.
+
+        If a spy is provided, all calls will be checked for a match.
+
+        This will imply :py:meth:`assertHasSpy`.
+
+        Args:
+            spy_or_call (callable or kgb.spies.FunctionSpy):
+                The function, spy, or call to check.
+
+            *expected_args (tuple):
+                Position arguments not expected to be provided in any of the
+                calls.
+
+            **expected_kwargs (dict):
+                Keyword arguments not expected to be provided in any of the
+                calls.
+
+        Raises:
+            AssertionError:
+                The function was called with the provided arguments.
+        """
+        if isinstance(spy_or_call, FunctionSpy):
+            self.assertSpyCalled(spy_or_call)
+
+        if spy_or_call.called_with(*expected_args, **expected_kwargs):
+            if isinstance(spy_or_call, SpyCall):
+                self._kgb_assert_fail(
+                    'This call to %s was unexpectedly passed args=%s, '
+                    'kwargs=%s.'
+                    % (
+                        self._format_spy_or_call(spy_or_call),
+                        safe_repr(expected_args),
+                        self._format_spy_kwargs(expected_kwargs),
+                    ))
+            else:
+                self._kgb_assert_fail(
+                    'A call to %s was unexpectedly passed args=%s, '
+                    'kwargs=%s.\n'
+                    '\n'
+                    'The following calls were recorded:\n'
+                    '\n'
+                    '%s'
+                    % (
+                        self._format_spy_or_call(spy_or_call),
+                        safe_repr(expected_args),
+                        self._format_spy_kwargs(expected_kwargs),
+                        self._format_spy_calls(
+                            spy_or_call,
+                            self._format_spy_call_args),
+                    ))
+
     def assertSpyLastCalledWith(self, spy, *expected_args, **expected_kwargs):
         """Assert that a function was last called with the given arguments.
 

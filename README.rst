@@ -268,6 +268,10 @@ Check if the function was ever called with certain arguments
     self.assertSpyLastCalledWith(obj.function, 'foo', bar='baz')
     self.assertTrue(obj.function.last_called_with('foo', bar='baz'))
 
+    # Or the inverse:
+    self.assertSpyNotCalledWith(obj.function, 'foo', bar='baz')
+    self.assertFalse(obj.function.called)
+
 
 The whole call history will be searched. You can provide the entirety of the
 arguments passed to the function, or you can provide a subset. You can pass

@@ -278,6 +278,60 @@ class TestCaseMixinTests(SpyAgency, TestCase):
         with self._check_assertion(msg):
             self.assertSpyCalledWith(obj.do_math.spy.calls[0], x=4, z=1)
 
+    def test_assertSpyNotCalledWith_with_unexpected_arguments(self):
+        """Testing SpyAgency.assertSpyNotCalledWith with unexpected arguments
+        """
+        obj = MathClass()
+        self.spy_on(obj.do_math)
+
+        obj.do_math(1, b=4)
+        obj.do_math(2, b=9)
+
+        # These should not fail.
+        self.assertSpyNotCalledWith(obj.do_math, a=1, b=3)
+        self.assertSpyNotCalledWith(obj.do_math.calls[0], a=1, b=3)
+        self.assertSpyNotCalledWith(obj.do_math.spy, a=1, b=9)
+        self.assertSpyNotCalledWith(obj.do_math.spy.calls[1], a=1, b=9)
+
+    def test_assertSpyNotCalledWith_without_unexpected_arguments(self):
+        """Testing SpyAgency.assertSpyNotCalledWith without unexpected
+        arguments
+        """
+        obj = MathClass()
+        self.spy_on(obj.do_math)
+
+        obj.do_math(1, b=4)
+        obj.do_math(2, b=9)
+
+        msg = (
+            "A call to do_math was unexpectedly passed args=(), "
+            "kwargs={'a': 1, 'b': 4}.\n"
+            "\n"
+            "The following calls were recorded:\n"
+            "\n"
+            "Call 0:\n"
+            "  args=()\n"
+            "  kwargs={'a': 1, 'b': 4}\n"
+            "\n"
+            "Call 1:\n"
+            "  args=()\n"
+            "  kwargs={'a': 2, 'b': 9}"
+        )
+
+        with self._check_assertion(msg):
+            self.assertSpyNotCalledWith(obj.do_math, a=1, b=4)
+
+        with self._check_assertion(msg):
+            self.assertSpyNotCalledWith(obj.do_math.spy, a=1, b=4)
+
+        msg = (
+            "This call to do_math was unexpectedly passed args=(),"
+            " kwargs={'a': 2, 'b': 9}."
+        )
+
+        with self._check_assertion(msg):
+            self.assertSpyNotCalledWith(obj.do_math.spy.calls[1], a=2, b=9)
+
     def test_assertSpyLastCalledWith_with_expected_arguments(self):
         """Testing SpyAgency.assertSpyLastCalledWith with expected arguments"""
         obj = MathClass()

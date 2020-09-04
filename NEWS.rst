@@ -2,6 +2,91 @@
 KGB Releases
 ============
 
+KGB 6.0 (TBD)
+=============
+
+* Added a new ``@spy_for`` decorator.
+
+  This is an alternative to defining a function and then calling
+  ``spy_on(func, call_fake=...)``. It takes a function or method to spy on
+  and an optional owner, much like ``spy_on()``.
+
+  For example:
+
+  .. code-block:: python
+
+     def test_doomsday_device(self):
+         dd = DoomsdayDevice()
+
+         @self.spy_for(dd.kaboom)
+         def _save_world(*args, **kwargs)
+             print('Sprinkles and ponies!')
+
+* Added new support for Spy Operations.
+
+  Spy Operations can be thought of as pre-packaged "fake functions" for a spy,
+  which can perform some useful operations. There are a few built-in types:
+
+  * ``SpyOpMatchAny`` allows a caller to provide a list of all possible sets
+    of arguments that may be in one or more calls, triggering spy behavior
+    for the particular match (allowing ``call_original``/``call_fake`` to be
+    conditional on the arguments). Any call not provided in the list will
+    raise an ``UnexpectedCallError`` assertion.
+
+  * ``SpyOpMatchInOrder`` is similar to ``SpyOpMatchAny``, but the calls
+    must be in the order specified (which is useful for ensuring an order
+    of operations).
+
+  * ``SpyOpRaise`` takes an exception instance and raises it when the
+    function is called (preventing a caller from having to define a
+    wrapping function).
+
+  * ``SpyOpReturn`` takes a return value and returns it when the function is
+    called (similar to defining a simple lambda, but better specifying the
+    intent).
+
+  These are set with an ``op=`` argument, instead of a ``call_fake=``. For
+  example:
+
+  .. code-block:: python
+
+     spy_on(pen.emit_poison, op=kgb.SpyOpRaise(PoisonEmptyError()))
+
+  Or, for one of the more complex examples:
+
+  .. code-block:: python
+
+     spy_on(traps.trigger, op=kgb.SpyOpMatchAny([
+         {
+             'args': ('hallway_lasers',),
+             'call_fake': _send_wolves,
+         },
+         {
+             'args': ('trap_tile',),
+             'call_fake': _spill_hot_oil,
+         },
+         {
+             'args': ('infrared_camera',),
+             'kwargs': {
+                 'sector': 'underground_passage',
+             },
+             'call_original': False,
+         },
+     ]))
+
+* Added an ``assertSpyNotCalledWith()`` assertion method.
+
+  Like the name suggests, it asserts that a spy has not been called with
+  the provided arguments. It's the inverse of ``assertSpyCalledWith()``.
+
+* ``SpyAgency``'s assertion methods can now be used even without mixing it
+  into a ``TestCase``.
+
+* Fixed a crash in ``SpyAgency.unspy_all()``.
+
+* Fixed the grammar in an error message about slippery functions.
+
+
 KGB 5.0 (10-April-2020)
 =======================
 

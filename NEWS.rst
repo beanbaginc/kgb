@@ -2,8 +2,8 @@
 KGB Releases
 ============
 
-KGB 6.0 (TBD)
-=============
+KGB 6.0 (3-September-2020)
+==========================
 
 * Added a new ``@spy_for`` decorator.
 
@@ -129,10 +129,12 @@ KGB 5.0 (10-April-2020)
 
   In previous versions of KGB, you wouldn't be able to spy on these
   functions. With 5.0, you can spy on them just fine by passing
-  ``owner=<instance>`` when setting up the spy::
+  ``owner=<instance>`` when setting up the spy:
 
-    spy_on(myobj.slippery_func,
-           owner=myobj)
+  .. code-block:: python
+
+     spy_on(myobj.slippery_func,
+            owner=myobj)
 
 * Lots of internal changes to help keep the codebase organized and
   manageable, as Python support increases.
@@ -205,11 +207,15 @@ KGB 2.0 (5-February-2018)
 
 * Added compatibility with Python 3.6.
 
-* Spy methods for standard functions no longer need to be accessed like::
+* Spy methods for standard functions no longer need to be accessed like:
+
+  .. code-block:: python
 
 	      func.spy.last_call
 
-  Now you can call them the same way you could with methods::
+  Now you can call them the same way you could with methods:
+
+  .. code-block:: python
 
 	      func.last_call
 

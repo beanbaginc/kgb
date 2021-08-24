@@ -500,9 +500,11 @@ class SpyOpMatchInOrder(BaseMatchingSpyOperation):
         except IndexError:
             raise UnexpectedCallError(
                 '%(spy)s was called %(num_calls)s time(s), but only '
-                '%(expected_calls)s call(s) were expected.'
+                '%(expected_calls)s call(s) were expected. Latest call: '
+                '%(latest_call)s'
                 % {
                     'expected_calls': len(self._calls),
+                    'latest_call': spy_call,
                     'num_calls': i + 1,
                     'spy': self.spy.func_name,
                 })

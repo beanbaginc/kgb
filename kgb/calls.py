@@ -126,5 +126,5 @@ class SpyCall(object):
                 text_type(self.exception) == message)
 
     def __repr__(self):
-        return '<SpyCall(args=%r, kwargs=%r, returned=%r, raised=%r>' % (
+        return '<SpyCall(args=%r, kwargs=%r, returned=%r, raised=%r)>' % (
             self.args, self.kwargs, self.return_value, self.exception)

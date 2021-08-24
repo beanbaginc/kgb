@@ -548,7 +548,9 @@ class SpyOpMatchInOrderTests(TestCase):
         self.assertEqual(obj.do_math(a=4, b=7), 11)
 
         expected_message = re.escape(
-            'do_math was called 2 time(s), but only 1 call(s) were expected.'
+            "do_math was called 2 time(s), but only 1 call(s) were expected. "
+            "Latest call: <SpyCall(args=(), kwargs={'a': 4, 'b': 9}, "
+            "returned=None, raised=None)>"
         )
 
         with self.assertRaisesRegexp(UnexpectedCallError, expected_message):

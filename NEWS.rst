@@ -2,6 +2,58 @@
 KGB Releases
 ============
 
+KGB 6.1 (TBD)
+=============
+
+* Added new ``SpyOpReturnInOrder`` and ``SpyOpRaiseInOrder`` spy operations.
+
+  ``SpyOpReturnInOrder`` takes a list of values to return. Each call made
+  will return the next value from that list. An exception will be raised
+  if any further calls are made once the list is exhausted.
+
+  ``SpyOpRaiseInOrder`` is similar, but takes a list of exceptions to raise.
+
+  Examples:
+
+  .. code-block:: python
+
+     spy_on(our_agent.get_identity, op=kgb.SpyOpReturnInOrder([
+         'nobody...',
+         'who?',
+         'not telling...',
+     ]))
+
+     spy_on(pen.emit_poison, op=kgb.SpyOpRaiseInOrder([
+         PoisonEmptyError(),
+         Kaboom(),
+         MissingPenError(),
+     ]))
+
+* ``SpyOpMatchInOrder`` and ``SpyOpMatchAny`` now accept operations in the
+  expected calls.
+
+  These can be set through an ``op`` key, instead of setting ``call_fake``
+  or ``call_original``.
+
+  For example:
+
+  .. code-block:: python
+
+     spy_on(lockbox.enter_code, op=kgb.SpyOpMatchInOrder([
+         {
+             'args': (42, 42, 42, 42, 42, 42),
+             'op': kgb.SpyOpRaise(Kaboom()),
+             'call_original': True,
+         },
+
+  Any operation can be provided. This also allows for advanced, reusable
+  rule sets by nesting, for example, ``SpyOpMatchInOrder`` inside
+  ``SpyOpMatchAny``.
+
+* ``UnexpectedCallError`` now lists the call that was made in the error
+  message.
+
+
 KGB 6.0 (3-September-2020)
 ==========================
 

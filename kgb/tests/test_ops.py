@@ -30,6 +30,42 @@ class SpyOpMatchAnyTests(TestCase):
 
         self.assertEqual(obj.do_math(a=1, b=2), -1)
 
+    def test_setup_with_instance_and_op(self):
+        """Testing SpyOpMatchAny set up with op=SpyOpMatchAny([...]) and op"""
+        obj = MathClass()
+
+        self.agency.spy_on(
+            obj.do_math,
+            op=SpyOpMatchAny([
+                {
+                    'kwargs': {
+                        'a': 1,
+                        'b': 2,
+                    },
+                    'op': SpyOpMatchInOrder([
+                        {
+                            'kwargs': {
+                                'a': 1,
+                                'b': 2,
+                                'x': 1,
+                            },
+                            'op': SpyOpReturn(123),
+                        },
+                        {
+                            'kwargs': {
+                                'a': 1,
+                                'b': 2,
+                                'x': 2,
+                            },
+                            'op': SpyOpReturn(456),
+                        },
+                    ]),
+                },
+            ]))
+
+        self.assertEqual(obj.do_math(a=1, b=2, x=1), 123)
+        self.assertEqual(obj.do_math(a=1, b=2, x=2), 456)
+
     def test_with_function(self):
         """Testing SpyOpMatchAny with function"""
         def do_math(a, b):
@@ -45,6 +81,38 @@ class SpyOpMatchAnyTests(TestCase):
             ]))
 
         self.assertEqual(do_math(5, 3), 2)
+
+    def test_with_function_and_op(self):
+        """Testing SpyOpMatchAny with function and op"""
+        def do_math(a, b, x=0):
+            return a + b
+
+        self.agency.spy_on(
+            do_math,
+            op=SpyOpMatchAny([
+                {
+                    'args': [5, 3],
+                    'op': SpyOpMatchInOrder([
+                        {
+                            'args': [5, 3],
+                            'kwargs': {
+                                'x': 1,
+                            },
+                            'op': SpyOpReturn(123),
+                        },
+                        {
+                            'args': [5, 3],
+                            'kwargs': {
+                                'x': 2,
+                            },
+                            'op': SpyOpReturn(456),
+                        },
+                    ]),
+                },
+            ]))
+
+        self.assertEqual(do_math(a=5, b=3, x=1), 123)
+        self.assertEqual(do_math(a=5, b=3, x=2), 456)
 
     def test_with_classmethod(self):
         """Testing SpyOpMatchAny with classmethod"""
@@ -63,6 +131,41 @@ class SpyOpMatchAnyTests(TestCase):
 
         self.assertEqual(MathClass.class_do_math(a=5, b=3), 2)
 
+    def test_with_classmethod_and_op(self):
+        """Testing SpyOpMatchAny with classmethod and op"""
+        self.agency.spy_on(
+            MathClass.class_do_math,
+            owner=MathClass,
+            op=SpyOpMatchAny([
+                {
+                    'kwargs': {
+                        'a': 5,
+                        'b': 3,
+                    },
+                    'op': SpyOpMatchInOrder([
+                        {
+                            'kwargs': {
+                                'a': 5,
+                                'b': 3,
+                                'x': 1,
+                            },
+                            'op': SpyOpReturn(123),
+                        },
+                        {
+                            'kwargs': {
+                                'a': 5,
+                                'b': 3,
+                                'x': 2,
+                            },
+                            'op': SpyOpReturn(456),
+                        },
+                    ]),
+                },
+            ]))
+
+        self.assertEqual(MathClass.class_do_math(a=5, b=3, x=1), 123)
+        self.assertEqual(MathClass.class_do_math(a=5, b=3, x=2), 456)
+
     def test_with_unbound_method(self):
         """Testing SpyOpMatchAny with unbound method"""
         self.agency.spy_on(
@@ -78,8 +181,43 @@ class SpyOpMatchAnyTests(TestCase):
             ]))
 
         obj = MathClass()
-
         self.assertEqual(obj.do_math(a=4, b=3), 7)
+
+    def test_with_unbound_method_and_op(self):
+        """Testing SpyOpMatchAny with unbound method and op"""
+        self.agency.spy_on(
+            MathClass.do_math,
+            owner=MathClass,
+            op=SpyOpMatchAny([
+                {
+                    'kwargs': {
+                        'a': 4,
+                        'b': 3,
+                    },
+                    'op': SpyOpMatchInOrder([
+                        {
+                            'kwargs': {
+                                'a': 4,
+                                'b': 3,
+                                'x': 1,
+                            },
+                            'op': SpyOpReturn(123),
+                        },
+                        {
+                            'kwargs': {
+                                'a': 4,
+                                'b': 3,
+                                'x': 2,
+                            },
+                            'op': SpyOpReturn(456),
+                        },
+                    ]),
+                },
+            ]))
+
+        obj = MathClass()
+        self.assertEqual(obj.do_math(a=4, b=3, x=1), 123)
+        self.assertEqual(obj.do_math(a=4, b=3, x=2), 456)
 
     def test_with_expected_calls(self):
         """Testing SpyOpMatchAny with all expected calls"""
@@ -103,6 +241,30 @@ class SpyOpMatchAnyTests(TestCase):
                 },
                 {
                     'kwargs': {
+                        'a': 100,
+                        'b': 200,
+                    },
+                    'op': SpyOpMatchInOrder([
+                        {
+                            'kwargs': {
+                                'a': 100,
+                                'b': 200,
+                                'x': 1,
+                            },
+                            'op': SpyOpReturn(123),
+                        },
+                        {
+                            'kwargs': {
+                                'a': 100,
+                                'b': 200,
+                                'x': 2,
+                            },
+                            'op': SpyOpReturn(456),
+                        },
+                    ]),
+                },
+                {
+                    'kwargs': {
                         'a': 5,
                         'b': 9,
                     },
@@ -117,11 +279,13 @@ class SpyOpMatchAnyTests(TestCase):
         values = [
             obj.do_math(5, b=9),
             obj.do_math(a=2, b=8),
+            obj.do_math(a=100, b=200, x=1),
+            obj.do_math(a=100, b=200, x=2),
             obj.do_math(a=1, b=1),
             obj.do_math(4, 7),
         ]
 
-        self.assertEqual(values, [24, None, 1001, 11])
+        self.assertEqual(values, [24, None, 123, 456, 1001, 11])
 
     def test_with_unexpected_call(self):
         """Testing SpyOpMatchAny with unexpected call"""
@@ -166,6 +330,26 @@ class SpyOpMatchInOrderTests(TestCase):
 
         self.assertEqual(obj.do_math(a=1, b=2), 3)
 
+    def test_setup_with_instance_and_op(self):
+        """Testing SpyOpMatchInOrder set up with op=SpyOpMatchInOrder([...])
+        and op
+        """
+        obj = MathClass()
+
+        self.agency.spy_on(
+            obj.do_math,
+            op=SpyOpMatchInOrder([
+                {
+                    'kwargs': {
+                        'a': 1,
+                        'b': 2,
+                    },
+                    'op': SpyOpReturn(123),
+                },
+            ]))
+
+        self.assertEqual(obj.do_math(a=1, b=2), 123)
+
     def test_with_function(self):
         """Testing SpyOpMatchInOrder with function"""
         def do_math(a, b):
@@ -181,6 +365,22 @@ class SpyOpMatchInOrderTests(TestCase):
             ]))
 
         self.assertEqual(do_math(5, 3), 2)
+
+    def test_with_function_and_op(self):
+        """Testing SpyOpMatchInOrder with function and op"""
+        def do_math(a, b):
+            return a + b
+
+        self.agency.spy_on(
+            do_math,
+            op=SpyOpMatchInOrder([
+                {
+                    'args': [5, 3],
+                    'op': SpyOpReturn(123),
+                },
+            ]))
+
+        self.assertEqual(do_math(5, 3), 123)
 
     def test_with_classmethod(self):
         """Testing SpyOpMatchInOrder with classmethod"""
@@ -199,6 +399,23 @@ class SpyOpMatchInOrderTests(TestCase):
 
         self.assertEqual(MathClass.class_do_math(a=5, b=3), 2)
 
+    def test_with_classmethod_and_op(self):
+        """Testing SpyOpMatchInOrder with classmethod and op"""
+        self.agency.spy_on(
+            MathClass.class_do_math,
+            owner=MathClass,
+            op=SpyOpMatchInOrder([
+                {
+                    'kwargs': {
+                        'a': 5,
+                        'b': 3,
+                    },
+                    'op': SpyOpReturn(123),
+                },
+            ]))
+
+        self.assertEqual(MathClass.class_do_math(a=5, b=3), 123)
+
     def test_with_unbound_method(self):
         """Testing SpyOpMatchInOrder with unbound method"""
         self.agency.spy_on(
@@ -216,6 +433,25 @@ class SpyOpMatchInOrderTests(TestCase):
         obj = MathClass()
 
         self.assertEqual(obj.do_math(a=4, b=3), 7)
+
+    def test_with_unbound_method_and_op(self):
+        """Testing SpyOpMatchInOrder with unbound method and op"""
+        self.agency.spy_on(
+            MathClass.do_math,
+            owner=MathClass,
+            op=SpyOpMatchInOrder([
+                {
+                    'kwargs': {
+                        'a': 4,
+                        'b': 3,
+                    },
+                    'op': SpyOpReturn(123),
+                },
+            ]))
+
+        obj = MathClass()
+
+        self.assertEqual(obj.do_math(a=4, b=3), 123)
 
     def test_with_expected_calls(self):
         """Testing SpyOpMatchInOrder with all expected calls"""
@@ -239,6 +475,13 @@ class SpyOpMatchInOrderTests(TestCase):
                 },
                 {
                     'kwargs': {
+                        'a': 100,
+                        'b': 200,
+                    },
+                    'op': SpyOpReturn(123),
+                },
+                {
+                    'kwargs': {
                         'a': 5,
                         'b': 9,
                     },
@@ -252,11 +495,12 @@ class SpyOpMatchInOrderTests(TestCase):
         values = [
             obj.do_math(4, 7),
             obj.do_math(a=2, b=8),
+            obj.do_math(a=100, b=200),
             obj.do_math(5, b=9),
             obj.do_math(a=1, b=1),
         ]
 
-        self.assertEqual(values, [11, None, 24, 1001])
+        self.assertEqual(values, [11, None, 123, 24, 1001])
 
     def test_with_unexpected_call(self):
         """Testing SpyOpMatchInOrder with unexpected call"""

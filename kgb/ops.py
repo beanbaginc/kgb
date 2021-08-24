@@ -41,7 +41,7 @@ class BaseSpyOperation(object):
         """
         raise NotImplementedError
 
-    def setup(self, spy):
+    def setup(self, spy, force_unbound=False):
         """Set up the operation.
 
         This associates the spy with the operation, and then returns a fake
@@ -52,13 +52,21 @@ class BaseSpyOperation(object):
             spy (kgb.spies.FunctionSpy):
                 The spy this operation is for.
 
+            force_unbound (bool, optional):
+                Whether to force building an unbound fake function. This is
+                needed for any functions called by an operation itself (and
+                is thus used for nested operations).
+
+                Version Added:
+                    6.1
+
         Returns:
             callable:
             The fake function to set up with the spy.
         """
         self.spy = spy
 
-        if spy.func_type == spy.TYPE_BOUND_METHOD:
+        if spy.func_type == spy.TYPE_BOUND_METHOD and not force_unbound:
             def fake_func(_self, *args, **kwargs):
                 return self._on_spy_call(*args, **kwargs)
         else:
@@ -131,7 +139,15 @@ class BaseMatchingSpyOperation(BaseSpyOperation):
             Whether to call the original function. This is the default if
             ``call_fake`` is not provided.
 
+        ``op`` (:py:class:`BaseSpyOperation`, optional):
+            A spy operation to call instead of ``call_fake`` or
+            ``call_original``.
+
         Subclasses may define custom keys.
+
+        Version Changed:
+            6.1:
+            Added support for ``op``.
 
         Args:
             calls (list of dict):
@@ -140,6 +156,48 @@ class BaseMatchingSpyOperation(BaseSpyOperation):
         super(BaseMatchingSpyOperation, self).__init__()
 
         self._calls = calls
+
+    def setup(self, spy, **kwargs):
+        """Set up the operation.
+
+        This invokes the common behavior for setting up a spy operation, and
+        then goes through all registered calls to see if any call-provided
+        operations also need to be set up.
+
+        Version Added:
+            6.1
+
+        Args:
+            spy (kgb.spies.FunctionSpy):
+                The spy this operation is for.
+
+            **kwargs (dict):
+                Additional keyword arguments to pass to the parent.
+
+        Returns:
+            callable:
+            The fake function to set up with the spy.
+        """
+        result = super(BaseMatchingSpyOperation, self).setup(spy, **kwargs)
+
+        new_calls = []
+
+        # Convert any operations into fake functions.
+        #
+        # Note that we have to force the resulting fake function to be
+        # unbound, since all fake functions provided to an operation are
+        # called without an owner.
+        for call in self._calls:
+            if 'op' in call:
+                call = call.copy()
+                call['call_fake'] = call.pop('op').setup(spy,
+                                                         force_unbound=True)
+
+            new_calls.append(call)
+
+        self._calls = new_calls
+
+        return result
 
     def get_call_match_config(self, spy_call):
         """Return a call match configuration for a call.
@@ -193,9 +251,18 @@ class BaseMatchingSpyOperation(BaseSpyOperation):
         """Handle a call to this operation.
 
         This will find a suitable call match configuration, if one was
-        provided, and then call either the fake function (if ``call_fake`` was
-        provided), the original function (if ``call_original`` is not set to
-        ``False``), or return ``None``.
+        provided, and then call one of the following, in order of preference:
+
+        1. The spy operation (if ``op`` is set)
+        2. The fake function (if ``call_fake`` was provided)
+        3. The original function (if ``call_original`` is not set to
+           ``False``)
+
+        If none of the above are invoked, ``None`` will be returned instead.
+
+        Version Changed:
+            6.1:
+            Added support for ``op``.
 
         Args:
             spy_call (kgb.calls.SpyCall):
@@ -363,7 +430,14 @@ class SpyOpMatchInOrder(BaseMatchingSpyOperation):
                     'secret_button_pushed': True,
                 },
                 'call_original': True,
-            }
+            },
+            {
+                'args': (4, 8, 15, 16, 23, 42),
+                'kwargs': {
+                    'secret_button_pushed': True,
+                },
+                'op': SpyOpRaise(Exception('Oh no')),
+            },
         ]))
     """
 
@@ -388,6 +462,10 @@ class SpyOpMatchInOrder(BaseMatchingSpyOperation):
         ``call_original`` (:py:class:`bool`, optional):
             Whether to call the original function. This is the default if
             ``call_fake`` is not provided.
+
+        ``op`` (:py:class:`BaseSpyOperation`, optional):
+            A spy operation to call instead of ``call_fake`` or
+            ``call_original``.
 
         Args:
             calls (list of dict):

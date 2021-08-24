@@ -14,7 +14,6 @@ from kgb.agency import SpyAgency
 
 class MathClass(object):
     def do_math(self, a=1, b=2, *args, **kwargs):
-        print(self)
         assert isinstance(self, MathClass)
 
         return a + b

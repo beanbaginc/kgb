@@ -434,7 +434,14 @@ operation.
        },
        {
            'args': ('trap_tile',),
-           'call_fake': _spill_hot_oil,
+           'op': SpyOpMatchInOrder([
+               {
+                   'call_fake': _spill_hot_oil,
+               },
+               {
+                   'call_fake': _drop_torch,
+               },
+           ]),
        },
        {
            'args': ('infrared_camera',),
@@ -464,6 +471,11 @@ using ``SpyOpMatchInOrder``.
        {
            'args': (9, 0, 2, 1, 0, 0),
            'call_fake': _start_countdown,
+       },
+       {
+           'args': (42, 42, 42, 42, 42, 42),
+           'op': kgb.SpyOpRaise(Kaboom()),
+           'call_original': True,
        },
        {
            'args': (4, 8, 15, 16, 23, 42),

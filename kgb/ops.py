@@ -551,6 +551,35 @@ class SpyOpRaise(BaseSpyOperation):
         raise self.exc
 
 
+class SpyOpRaiseInOrder(SpyOpMatchInOrder):
+    """An operation for raising exceptions in the order of calls.
+
+    This is similar to :py:class:`SpyOpRaise`, but will raise a different
+    exception for each call, based on a provided list.
+
+    Example:
+        spy_on(our_agent.get_identities, op=SpyOpRaiseInOrder([
+            PoisonEmptyError(),
+            Kaboom(),
+            MissingPenError(),
+        ]))
+    """
+
+    def __init__(self, exceptions):
+        """Initialize the operation.
+
+        Args:
+            exceptions (list of Exception):
+                The list of exceptions, one for each function call.
+        """
+        super(SpyOpRaiseInOrder, self).__init__([
+            {
+                'op': SpyOpRaise(exc),
+            }
+            for exc in exceptions
+        ])
+
+
 class SpyOpReturn(BaseSpyOperation):
     """An operation for returning a value.
 
@@ -587,3 +616,32 @@ class SpyOpReturn(BaseSpyOperation):
             The return value provided to the operation.
         """
         return self.return_value
+
+
+class SpyOpReturnInOrder(SpyOpMatchInOrder):
+    """An operation for returning a value.
+
+    This is similar to :py:class:`SpyOpReturn`, but will return a different
+    value for each call, based on a provided list.
+
+    Example:
+        spy_on(our_agent.get_identities, op=SpyOpReturnInOrder([
+            'nobody...',
+            'who?',
+            'never heard of them...',
+        ]))
+    """
+
+    def __init__(self, return_values):
+        """Initialize the operation.
+
+        Args:
+            return_values (list):
+                The list of values, one for each function call.
+        """
+        super(SpyOpReturnInOrder, self).__init__([
+            {
+                'op': SpyOpReturn(value),
+            }
+            for value in return_values
+        ])

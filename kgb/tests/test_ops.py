@@ -5,7 +5,12 @@ from __future__ import unicode_literals
 import re
 
 from kgb.errors import UnexpectedCallError
-from kgb.ops import SpyOpMatchAny, SpyOpMatchInOrder, SpyOpRaise, SpyOpReturn
+from kgb.ops import (SpyOpMatchAny,
+                     SpyOpMatchInOrder,
+                     SpyOpRaise,
+                     SpyOpRaiseInOrder,
+                     SpyOpReturn,
+                     SpyOpReturnInOrder)
 from kgb.tests.base import MathClass, TestCase
 
 
@@ -628,3 +633,83 @@ class SpyOpReturnTests(TestCase):
         obj = MathClass()
 
         self.assertEqual(obj.do_math(a=4, b=3), 'abc123')
+
+
+class SpyOpReturnInOrderTests(TestCase):
+    """Unit tests for kgb.ops.SpyOpReturnInOrder."""
+
+    def test_with_function(self):
+        """Testing SpyOpReturnInOrder with function"""
+        def do_math(a, b):
+            return a + b
+
+        self.agency.spy_on(
+            do_math,
+            op=SpyOpReturnInOrder([
+                'abc123',
+                'def456',
+                'ghi789',
+            ]))
+
+        self.assertEqual(do_math(5, 3), 'abc123')
+        self.assertEqual(do_math(5, 3), 'def456')
+        self.assertEqual(do_math(5, 3), 'ghi789')
+
+        message = re.escape(
+            "do_math was called 4 time(s), but only 3 call(s) were expected. "
+            "Latest call: <SpyCall(args=(5, 3), kwargs={}, returned=None, "
+            "raised=None)>"
+        )
+
+        with self.assertRaisesRegexp(UnexpectedCallError, message):
+            do_math(5, 3)
+
+    def test_with_classmethod(self):
+        """Testing SpyOpReturnInOrder with classmethod"""
+        self.agency.spy_on(
+            MathClass.class_do_math,
+            owner=MathClass,
+            op=SpyOpReturnInOrder([
+                'abc123',
+                'def456',
+                'ghi789',
+            ]))
+
+        self.assertEqual(MathClass.class_do_math(5, 3), 'abc123')
+        self.assertEqual(MathClass.class_do_math(5, 3), 'def456')
+        self.assertEqual(MathClass.class_do_math(5, 3), 'ghi789')
+
+        message = re.escape(
+            "class_do_math was called 4 time(s), but only 3 call(s) were "
+            "expected. Latest call: <SpyCall(args=(), kwargs={'a': 5, "
+            "'b': 3}, returned=None, raised=None)>"
+        )
+
+        with self.assertRaisesRegexp(UnexpectedCallError, message):
+            MathClass.class_do_math(5, 3)
+
+    def test_with_unbound_method(self):
+        """Testing SpyOpReturnInOrder with unbound method"""
+        self.agency.spy_on(
+            MathClass.do_math,
+            owner=MathClass,
+            op=SpyOpReturnInOrder([
+                'abc123',
+                'def456',
+                'ghi789',
+            ]))
+
+        obj = MathClass()
+
+        self.assertEqual(obj.do_math(a=4, b=3), 'abc123')
+        self.assertEqual(obj.do_math(a=4, b=3), 'def456')
+        self.assertEqual(obj.do_math(a=4, b=3), 'ghi789')
+
+        message = re.escape(
+            "do_math was called 4 time(s), but only 3 call(s) were "
+            "expected. Latest call: <SpyCall(args=(), kwargs={'a': 4, "
+            "'b': 3}, returned=None, raised=None)>"
+        )
+
+        with self.assertRaisesRegexp(UnexpectedCallError, message):
+            obj.do_math(a=4, b=3)

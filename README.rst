@@ -180,7 +180,7 @@ Creating a spy that reroutes to a fake function
 
     agency.spy_on(obj.function, call_fake=my_fake_function)
 
-    # Or, in KGB 6+
+    # Or, in kgb 6+
     @agency.spy_for(obj.function)
     def _my_fake_function(some_param, *args, **kwargs):
         ...
@@ -395,7 +395,7 @@ Plan a spy operation
 
 Why start from scratch when setting up a spy? Let's plan an operation.
 
-(Spy operations are only available in KGB 6 or higher.)
+(Spy operations are only available in kgb 6 or higher.)
 
 
 Raise an exception when called
@@ -405,6 +405,16 @@ Raise an exception when called
 
    spy_on(pen.emit_poison, op=kgb.SpyOpRaise(PoisonEmptyError()))
 
+Or go nuts, have a different exception for each call (in kgb 6.1+):
+
+.. code-block:: python
+
+   spy_on(pen.emit_poison, op=kgb.SpyOpRaiseInOrder([
+       PoisonEmptyError(),
+       Kaboom(),
+       MissingPenError(),
+   ]))
+
 
 Or return a value
 -----------------
@@ -412,6 +422,16 @@ Or return a value
 .. code-block:: python
 
    spy_on(our_agent.get_identity, op=kgb.SpyOpReturn('nobody...'))
+
+Maybe a different value for each call (in kgb 6.1+)?
+
+.. code-block:: python
+
+   spy_on(our_agent.get_identity, op=kgb.SpyOpReturnInOrder([
+       'nobody...',
+       'who?',
+       'not telling...',
+   ]))
 
 
 Now for something more complicated.

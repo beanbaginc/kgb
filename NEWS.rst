@@ -2,8 +2,8 @@
 KGB Releases
 ============
 
-KGB 6.1 (TBD)
-=============
+KGB 6.1 (24-August-2021)
+========================
 
 * Added new ``SpyOpReturnInOrder`` and ``SpyOpRaiseInOrder`` spy operations.
 

@@ -16,7 +16,7 @@ from kgb.ops import (SpyOpMatchAny,
 #
 #   (Major, Minor, Micro, alpha/beta/rc/final, Release Number, Released)
 #
-VERSION = (6, 1, 0, 'final', 0, True)
+VERSION = (7, 0, 0, 'alpha', 0, False)
 
 
 def get_version_string():

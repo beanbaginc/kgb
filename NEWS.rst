@@ -45,6 +45,7 @@ KGB 6.1 (24-August-2021)
              'op': kgb.SpyOpRaise(Kaboom()),
              'call_original': True,
          },
+     ]))
 
   Any operation can be provided. This also allows for advanced, reusable
   rule sets by nesting, for example, ``SpyOpMatchInOrder`` inside

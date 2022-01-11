@@ -3,6 +3,9 @@
 from __future__ import unicode_literals
 
 import inspect
+from unittest.util import safe_repr
+
+from kgb.pycompat import iteritems
 
 
 def get_defined_attr_value(owner, name, ancestors_only=False):
@@ -69,3 +72,25 @@ def is_attr_defined_on_ancestor(cls, name):
         return True
     except AttributeError:
         return False
+
+
+def format_spy_kwargs(kwargs):
+    """Format keyword arguments.
+
+    This will convert all keys to native strings, to help with showing
+    more reasonable output that's consistent. The keys will also be
+    provided in sorted order.
+
+    Args:
+        kwargs (dict):
+            The dictionary of keyword arguments.
+
+    Returns:
+        unicode:
+        The formatted string representation.
+    """
+    return '{%s}' % ', '.join(
+        '%s: %s' % (safe_repr(str(key)), safe_repr(value))
+        for key, value in sorted(iteritems(kwargs),
+                                 key=lambda pair: pair[0])
+    )

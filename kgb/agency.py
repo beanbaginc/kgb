@@ -8,6 +8,7 @@ from unittest.util import safe_repr
 from kgb.pycompat import iteritems
 from kgb.signature import _UNSET_ARG
 from kgb.spies import FunctionSpy, SpyCall
+from kgb.utils import format_spy_kwargs
 
 
 class SpyAgency(object):
@@ -290,7 +291,7 @@ class SpyAgency(object):
                     % (
                         self._format_spy_or_call(spy_or_call),
                         safe_repr(expected_args),
-                        self._format_spy_kwargs(expected_kwargs),
+                        format_spy_kwargs(expected_kwargs),
                         self._format_spy_call_args(spy_or_call),
                     ))
             else:
@@ -303,7 +304,7 @@ class SpyAgency(object):
                     % (
                         self._format_spy_or_call(spy_or_call),
                         safe_repr(expected_args),
-                        self._format_spy_kwargs(expected_kwargs),
+                        format_spy_kwargs(expected_kwargs),
                         self._format_spy_calls(
                             spy_or_call,
                             self._format_spy_call_args),
@@ -344,7 +345,7 @@ class SpyAgency(object):
                     % (
                         self._format_spy_or_call(spy_or_call),
                         safe_repr(expected_args),
-                        self._format_spy_kwargs(expected_kwargs),
+                        format_spy_kwargs(expected_kwargs),
                     ))
             else:
                 self._kgb_assert_fail(
@@ -357,7 +358,7 @@ class SpyAgency(object):
                     % (
                         self._format_spy_or_call(spy_or_call),
                         safe_repr(expected_args),
-                        self._format_spy_kwargs(expected_kwargs),
+                        format_spy_kwargs(expected_kwargs),
                         self._format_spy_calls(
                             spy_or_call,
                             self._format_spy_call_args),
@@ -394,7 +395,7 @@ class SpyAgency(object):
                 % (
                     self._format_spy_or_call(spy),
                     safe_repr(expected_args),
-                    self._format_spy_kwargs(expected_kwargs),
+                    format_spy_kwargs(expected_kwargs),
                     self._format_spy_call_args(spy.last_call),
                 ))
 
@@ -882,24 +883,3 @@ class SpyAgency(object):
             ]
 
         return '\n'.join(lines)
-
-    def _format_spy_kwargs(self, kwargs):
-        """Format keyword arguments.
-
-        This will convert all keys to native strings, to help with showing
-        more reasonable output that's consistent. The keys will also be
-        provided in sorted order.
-
-        Args:
-            kwargs (dict):
-                The dictionary of keyword arguments.
-
-        Returns:
-            unicode:
-            The formatted string representation.
-        """
-        return '{%s}' % ', '.join(
-            '%s: %s' % (safe_repr(str(key)), safe_repr(value))
-            for key, value in sorted(iteritems(kwargs),
-                                     key=lambda pair: pair[0])
-        )

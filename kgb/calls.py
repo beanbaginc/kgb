@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 
 from kgb.pycompat import iteritems, text_type
 from kgb.signature import FunctionSig
+from kgb.utils import format_spy_kwargs
 
 
 class SpyCall(object):
@@ -126,5 +127,6 @@ class SpyCall(object):
                 text_type(self.exception) == message)
 
     def __repr__(self):
-        return '<SpyCall(args=%r, kwargs=%r, returned=%r, raised=%r)>' % (
-            self.args, self.kwargs, self.return_value, self.exception)
+        return '<SpyCall(args=%r, kwargs=%s, returned=%r, raised=%r)>' % (
+            self.args, format_spy_kwargs(self.kwargs), self.return_value,
+            self.exception)

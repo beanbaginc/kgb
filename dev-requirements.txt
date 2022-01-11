@@ -1,3 +1,2 @@
-nose; python_version < '3'
-nose3; python_version >= '3'
+pytest
 unittest2; python_version < '2.7'

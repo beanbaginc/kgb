@@ -20,6 +20,12 @@ VERSION = (7, 0, 0, 'alpha', 0, False)
 
 
 def get_version_string():
+    """Return the kgb version as a human-readable string.
+
+    Returns:
+        unicode:
+        The kgb version.
+    """
     version = '%s.%s' % (VERSION[0], VERSION[1])
 
     if VERSION[2]:
@@ -38,18 +44,38 @@ def get_version_string():
 
 
 def get_package_version():
+    """Return the kgb version as a Python package version string.
+
+    Returns:
+        unicode:
+        The kgb package version.
+    """
     version = '%s.%s' % (VERSION[0], VERSION[1])
 
     if VERSION[2]:
-        version += ".%s" % VERSION[2]
+        version += '.%s' % VERSION[2]
 
-    if VERSION[3] != 'final':
-        version += '%s%s' % (VERSION[3], VERSION[4])
+    tag = VERSION[3]
+
+    if tag != 'final':
+        if tag == 'alpha':
+            tag = 'a'
+        elif tag == 'beta':
+            tag = 'b'
+
+        version = '%s%s%s' % (version, tag, VERSION[4])
 
     return version
 
 
 def is_release():
+    """Return whether this is a released version of kgb.
+
+    Returns:
+        bool:
+        ``True`` if the version is released. ``False`` if it is still in
+        development.
+    """
     return VERSION[5]
 
 

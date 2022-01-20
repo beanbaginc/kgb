@@ -2,8 +2,8 @@
 kgb Releases
 ============
 
-kgb 7 (TBD)
-===========
+kgb 7 (20-January-2022)
+=======================
 
 * Added explicit support for Python 3.10.
 

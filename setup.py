@@ -49,6 +49,11 @@ setup(name=PACKAGE_NAME,
       packages=find_packages(),
       maintainer='Christian Hammond',
       maintainer_email='christian@beanbaginc.com',
+      entry_points={
+          'pytest11': [
+              'kgb = kgb.pytest_plugin',
+          ],
+      },
       python_requires=','.join([
           '>=2.7',
           '!=3.0.*',
@@ -61,6 +66,7 @@ setup(name=PACKAGE_NAME,
       classifiers=[
           'Development Status :: 5 - Production/Stable',
           'Environment :: Other Environment',
+          'Framework :: Pytest',
           'Intended Audience :: Developers',
           'License :: OSI Approved :: MIT License',
           'Operating System :: OS Independent',

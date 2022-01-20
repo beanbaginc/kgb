@@ -20,6 +20,11 @@ class SpyAgency(object):
     Every spy created through this agency will be tracked, and can be later
     be removed (individually or at once).
 
+    Version Changed:
+        7.0:
+        Added ``assert_`` versions of all the assertion methods (e.g.,
+        ``assert_spy_called_with`` as an alias of ``assertSpyCalledWith``.
+
     Attributes:
         spies (set of kgb.spies.FunctionSpy):
             All spies currently registered with this agency.
@@ -883,3 +888,20 @@ class SpyAgency(object):
             ]
 
         return '\n'.join(lines)
+
+    # snake_case versions of the test functions.
+    #
+    # Useful for pytest and other uses.
+    assert_has_spy = assertHasSpy
+    assert_spy_called = assertSpyCalled
+    assert_spy_not_called = assertSpyNotCalled
+    assert_spy_call_count = assertSpyCallCount
+    assert_spy_called_with = assertSpyCalledWith
+    assert_spy_not_called_with = assertSpyNotCalledWith
+    assert_spy_last_called_with = assertSpyLastCalledWith
+    assert_spy_returned = assertSpyReturned
+    assert_spy_last_returned = assertSpyLastReturned
+    assert_spy_raised = assertSpyRaised
+    assert_spy_last_raised = assertSpyLastRaised
+    assert_spy_raised_message = assertSpyRaisedMessage
+    assert_spy_last_raised_message = assertSpyLastRaisedMessage

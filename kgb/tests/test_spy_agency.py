@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 
 from contextlib import contextmanager
 
+import kgb.asserts
 from kgb.agency import SpyAgency
 from kgb.signature import FunctionSig
 from kgb.tests.base import MathClass, TestCase
@@ -131,6 +132,10 @@ class TestCaseMixinTests(SpyAgency, TestCase):
         self.assertHasSpy(MathClass.do_math)
         self.assertHasSpy(MathClass.do_math.spy)
 
+        # Check the aliases.
+        self.assert_has_spy(MathClass.do_math)
+        kgb.asserts.assert_has_spy(MathClass.do_math)
+
     def test_assertHasSpy_without_spy(self):
         """Testing SpyAgency.assertHasSpy without spy"""
         with self._check_assertion('do_math has not been spied on.'):
@@ -146,6 +151,10 @@ class TestCaseMixinTests(SpyAgency, TestCase):
         # These should not fail.
         self.assertSpyCalled(obj.do_math)
         self.assertSpyCalled(obj.do_math.spy)
+
+        # Check the aliases.
+        self.assert_spy_called(obj.do_math)
+        kgb.asserts.assert_spy_called(obj.do_math)
 
     def test_assertSpyCalled_without_called(self):
         """Testing SpyAgency.assertSpyCalled without spy called"""
@@ -168,6 +177,10 @@ class TestCaseMixinTests(SpyAgency, TestCase):
         # These should not fail.
         self.assertSpyNotCalled(obj.do_math)
         self.assertSpyNotCalled(obj.do_math.spy)
+
+        # Check the aliases.
+        self.assert_spy_not_called(obj.do_math)
+        kgb.asserts.assert_spy_not_called(obj.do_math)
 
     def test_assertSpyNotCalled_with_called(self):
         """Testing SpyAgency.assertSpyNotCalled with spy called"""
@@ -207,6 +220,10 @@ class TestCaseMixinTests(SpyAgency, TestCase):
         self.assertSpyCallCount(obj.do_math, 2)
         self.assertSpyCallCount(obj.do_math.spy, 2)
 
+        # Check the aliases.
+        self.assert_spy_call_count(obj.do_math, 2)
+        kgb.asserts.assert_spy_call_count(obj.do_math, 2)
+
     def test_assertSpyCallCount_without_expected_count(self):
         """Testing SpyAgency.assertSpyCallCount without expected call count"""
         obj = MathClass()
@@ -236,6 +253,10 @@ class TestCaseMixinTests(SpyAgency, TestCase):
         self.assertSpyCalledWith(obj.do_math.calls[0], a=1, b=4)
         self.assertSpyCalledWith(obj.do_math.spy, a=2, b=9)
         self.assertSpyCalledWith(obj.do_math.spy.calls[1], a=2, b=9)
+
+        # Check the aliases.
+        self.assert_spy_called_with(obj.do_math, a=1, b=4)
+        kgb.asserts.assert_spy_called_with(obj.do_math, a=1, b=4)
 
     def test_assertSpyCalledWith_without_expected_arguments(self):
         """Testing SpyAgency.assertSpyCalledWith without expected arguments"""
@@ -293,6 +314,10 @@ class TestCaseMixinTests(SpyAgency, TestCase):
         self.assertSpyNotCalledWith(obj.do_math.spy, a=1, b=9)
         self.assertSpyNotCalledWith(obj.do_math.spy.calls[1], a=1, b=9)
 
+        # Check the aliases.
+        self.assert_spy_not_called_with(obj.do_math, a=1, b=3)
+        kgb.asserts.assert_spy_not_called_with(obj.do_math, a=1, b=3)
+
     def test_assertSpyNotCalledWith_without_unexpected_arguments(self):
         """Testing SpyAgency.assertSpyNotCalledWith without unexpected
         arguments
@@ -344,6 +369,10 @@ class TestCaseMixinTests(SpyAgency, TestCase):
         self.assertSpyLastCalledWith(obj.do_math, a=2, b=9)
         self.assertSpyLastCalledWith(obj.do_math.spy, a=2, b=9)
 
+        # Check the aliases.
+        self.assert_spy_last_called_with(obj.do_math, a=2, b=9)
+        kgb.asserts.assert_spy_last_called_with(obj.do_math, a=2, b=9)
+
     def test_assertSpyLastCalledWith_without_expected_arguments(self):
         """Testing SpyAgency.assertSpyLastCalledWith without expected
         arguments
@@ -383,6 +412,10 @@ class TestCaseMixinTests(SpyAgency, TestCase):
         self.assertSpyReturned(obj.do_math.calls[0], 5)
         self.assertSpyReturned(obj.do_math.spy, 11)
         self.assertSpyReturned(obj.do_math.spy.calls[1], 11)
+
+        # Check the aliases.
+        self.assert_spy_returned(obj.do_math, 5)
+        kgb.asserts.assert_spy_returned(obj.do_math, 5)
 
     def test_assertSpyReturned_without_expected_return(self):
         """Testing SpyAgency.assertSpyReturned without expected return value"""
@@ -434,6 +467,10 @@ class TestCaseMixinTests(SpyAgency, TestCase):
         self.assertSpyLastReturned(obj.do_math, 11)
         self.assertSpyLastReturned(obj.do_math.spy, 11)
 
+        # Check the aliases.
+        self.assert_spy_last_returned(obj.do_math, 11)
+        kgb.asserts.assert_spy_last_returned(obj.do_math, 11)
+
     def test_assertSpyLastReturned_without_expected_return(self):
         """Testing SpyAgency.assertSpyLastReturned without expected return
         value
@@ -484,6 +521,10 @@ class TestCaseMixinTests(SpyAgency, TestCase):
         self.assertSpyRaised(obj.do_math.calls[0], KeyError)
         self.assertSpyRaised(obj.do_math.spy, ValueError)
         self.assertSpyRaised(obj.do_math.spy.calls[1], ValueError)
+
+        # Check the aliases.
+        self.assert_spy_raised(obj.do_math, KeyError)
+        kgb.asserts.assert_spy_raised(obj.do_math, KeyError)
 
     def test_assertSpyRaised_with_expected_no_exception(self):
         """Testing SpyAgency.assertSpyRaised with expected completions without
@@ -599,6 +640,10 @@ class TestCaseMixinTests(SpyAgency, TestCase):
         self.assertSpyLastRaised(obj.do_math, ValueError)
         self.assertSpyLastRaised(obj.do_math.spy, ValueError)
 
+        # Check the aliases.
+        self.assert_spy_last_raised(obj.do_math, ValueError)
+        kgb.asserts.assert_spy_last_raised(obj.do_math, ValueError)
+
     def test_assertSpyLastRaised_with_expected_no_exception(self):
         """Testing SpyAgency.assertSpyLastRaised with expected completion
         without raising
@@ -693,6 +738,11 @@ class TestCaseMixinTests(SpyAgency, TestCase):
         self.assertSpyRaisedMessage(obj.do_math.spy, ValueError, 'Bad value!')
         self.assertSpyRaisedMessage(obj.do_math.spy.calls[1], ValueError,
                                     'Bad value!')
+
+        # Check the aliases.
+        self.assert_spy_raised_message(obj.do_math, AttributeError, 'Bad key!')
+        kgb.asserts.assert_spy_raised_message(obj.do_math, AttributeError,
+                                              'Bad key!')
 
     def test_assertSpyRaisedMessage_without_expected(self):
         """Testing SpyAgency.assertSpyRaisedMessage without expected exception
@@ -802,9 +852,15 @@ class TestCaseMixinTests(SpyAgency, TestCase):
         self.assertSpyLastRaisedMessage(obj.do_math.spy, ValueError,
                                         'Bad value!')
 
+        # Check the aliases.
+        self.assert_spy_last_raised_message(obj.do_math, ValueError,
+                                            'Bad value!')
+        kgb.asserts.assert_spy_last_raised_message(obj.do_math, ValueError,
+                                                   'Bad value!')
+
     def test_assertSpyLastRaisedMessage_without_expected(self):
-        """Testing SpyAgency.assertSpyLastRaisedMessage without expected exception
-        and message raised
+        """Testing SpyAgency.assertSpyLastRaisedMessage without expected
+        exception and message raised
         """
         def _do_math(_self, a, *args, **kwargs):
             if a == 1:
@@ -847,7 +903,8 @@ class TestCaseMixinTests(SpyAgency, TestCase):
                                             'Bad key!')
 
     def test_assertSpyLastRaisedMessage_without_raised(self):
-        """Testing SpyAgency.assertSpyLastRaisedMessage without exception raised
+        """Testing SpyAgency.assertSpyLastRaisedMessage without exception
+        raised
         """
         obj = MathClass()
         self.spy_on(obj.do_math)

@@ -1,4 +1,4 @@
-"""Common utility functions used by KGB."""
+"""Common utility functions used by kgb."""
 
 from __future__ import unicode_literals
 

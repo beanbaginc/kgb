@@ -1,8 +1,8 @@
 ============
-KGB Releases
+kgb Releases
 ============
 
-KGB 7 (TBD)
+kgb 7 (TBD)
 ===========
 
 * Added explicit support for Python 3.10.
@@ -61,7 +61,7 @@ KGB 7 (TBD)
 .. _pytest: https://pytest.org
 
 
-KGB 6.1 (24-August-2021)
+kgb 6.1 (24-August-2021)
 ========================
 
 * Added new ``SpyOpReturnInOrder`` and ``SpyOpRaiseInOrder`` spy operations.
@@ -114,7 +114,7 @@ KGB 6.1 (24-August-2021)
   message.
 
 
-KGB 6.0 (3-September-2020)
+kgb 6.0 (3-September-2020)
 ==========================
 
 * Added a new ``@spy_for`` decorator.
@@ -199,7 +199,7 @@ KGB 6.0 (3-September-2020)
 * Fixed the grammar in an error message about slippery functions.
 
 
-KGB 5.0 (10-April-2020)
+kgb 5.0 (10-April-2020)
 =======================
 
 * Added support for Python 3.8.
@@ -239,7 +239,7 @@ KGB 5.0 (10-April-2020)
   new function every time it's accessed. A real-world example would be the
   Python Stripe module's API functions, like ``stripe.Customer.delete``.
 
-  In previous versions of KGB, you wouldn't be able to spy on these
+  In previous versions of kgb, you wouldn't be able to spy on these
   functions. With 5.0, you can spy on them just fine by passing
   ``owner=<instance>`` when setting up the spy:
 
@@ -252,7 +252,7 @@ KGB 5.0 (10-April-2020)
   manageable, as Python support increases.
 
 
-KGB 4.0 (30-July-2019)
+kgb 4.0 (30-July-2019)
 ======================
 
 * Added ``call_original()``, which calls the original spied-on function.
@@ -265,7 +265,7 @@ KGB 4.0 (30-July-2019)
   for inspecting and formatting function/method signatures.
 
 
-KGB 3.0 (23-March-2019)
+kgb 3.0 (23-March-2019)
 =======================
 
 * Added an argument to ``spy_on()`` for specifying an explicit owner class
@@ -288,7 +288,7 @@ KGB 3.0 (23-March-2019)
   on Python 2.6 and early versions of 2.7.
 
 
-KGB 2.0.3 (18-August-2018)
+kgb 2.0.3 (18-August-2018)
 ==========================
 
 * Added a version classifier for Python 3.7.
@@ -296,7 +296,7 @@ KGB 2.0.3 (18-August-2018)
 * Fixed a regression on Python 2.6.
 
 
-KGB 2.0.2 (9-July-2018)
+kgb 2.0.2 (9-July-2018)
 =======================
 
 * Fixed spying on instances of classes with a custom ``__setattr__``.
@@ -304,7 +304,7 @@ KGB 2.0.2 (9-July-2018)
 * Fixed spying on classmethods defined in the parent of a class.
 
 
-KGB 2.0.1 (12-March-2018)
+kgb 2.0.1 (12-March-2018)
 =========================
 
 * Fixed a regression in spying on classmethods.
@@ -314,7 +314,7 @@ KGB 2.0.1 (12-March-2018)
 * Fixed problems executing some types of functions on Python 3.6.
 
 
-KGB 2.0 (5-February-2018)
+kgb 2.0 (5-February-2018)
 =========================
 
 * Added compatibility with Python 3.6.
@@ -341,7 +341,7 @@ KGB 2.0 (5-February-2018)
   lot more helpful.
 
 
-KGB 1.1 (5-December-2017)
+kgb 1.1 (5-December-2017)
 =========================
 
 * Added ``returned()``, ``last_returned()``, ``raised()``, ``last_raised()``,
@@ -367,7 +367,7 @@ KGB 1.1 (5-December-2017)
   arguments or when the function takes ``*args`` and ``**kwargs``.
 
 
-KGB 1.0 (31-October-2017)
+kgb 1.0 (31-October-2017)
 =========================
 
 * Added support for Python 3, including keyword-only arguments.
@@ -376,14 +376,14 @@ KGB 1.0 (31-October-2017)
   allowing Python's ``getargspec()`` to work.
 
 
-KGB 0.5.3 (28-November-2015)
+kgb 0.5.3 (28-November-2015)
 ============================
 
 * Objects that evaluate to false (such as objects inheriting from ``dict``)
   can now be spied upon.
 
 
-KGB 0.5.2 (17-March-2015)
+kgb 0.5.2 (17-March-2015)
 =========================
 
 * Expose the spy when using ``spy_on`` as a context manager.
@@ -391,13 +391,13 @@ KGB 0.5.2 (17-March-2015)
   Patch by Todd Wolfson.
 
 
-KGB 0.5.1 (2-June-2014)
+kgb 0.5.1 (2-June-2014)
 =======================
 
 * Added support for spying on unbound member functions on classes.
 
 
-KGB 0.5.0 (23-May-2013)
+kgb 0.5.0 (23-May-2013)
 =======================
 
 * First public release.

@@ -20,22 +20,65 @@ Spies are awesome.
 
 (If you've used Jasmine_, you know this.)
 
+Spies are like mocks, but better. You're not mocking the world. You're
+replacing very specific function logic, or listening to functions without
+altering them. (See the FAQ below.)
+
 
 .. _Jasmine: https://jasmine.github.io/
+
+
+What test platforms are supported?
+==================================
+
+Anything Python-based:
+
+* unittest_
+* pytest_
+* nose_
+* nose2_
+
+You can even use it outside of unit tests as part of your application. If you
+really want to. (Probably don't do that.)
+
+
+.. _unittest: https://docs.python.org/3/library/unittest.html
+.. _pytest: https://pytest.org
+.. _nose: https://nose.readthedocs.io/en/latest/
+.. _nose2: https://docs.nose2.io/en/latest/
 
 
 Where is kgb used?
 ==================
 
-We use kgb at Beanbag_ for our `Review Board`_ and RBCommons_ products.
+* `liveswot-api <https://github.com/imranariffin/liveswot-api>`_ --
+  REST API Backend for liveswot
+* `phabricator-emails
+  <https://github.com/mozilla-conduit/phabricator-emails>`_ --
+  Mozilla's utilities for converting Phabricator feeds to e-mails
+* `projector <https://github.com/brennie/projector>`_ --
+  Takes the overhead out of managing repositories and development environments
+* `ynab-sdk-python <https://github.com/andreroggeri/ynab-sdk-python>`_ --
+  Python implementation of the YNAB API
 
-If you use kgb, let us know and we'll add you to a shiny new list on this
-page.
+Plus our own products:
 
+* `Django Evolution <https://django-evolution.readthedocs.io/>`_ --
+  An alternative approach to Django database migrations
+* `Djblets <https://github.com/djblets/djblets/>`_ --
+  An assortment of utilities and add-ons for managing large Django projects
+* `Review Board <https://www.reviewboard.org/>`_ --
+  Our open source, extensible code review product
+* `RBCommons <https://rbcommons.com>`_ --
+  Our hosted code review service
+* `RBTools <https://www.reviewboard.org/downloads/rbtools/>`_ --
+  Command line tools for Review Board
+* `Power Pack <https://www.reviewboard.org/powerpack/>`_ --
+  Document review, reports, and enterprise SCM integrations for Review Board
+* `Review Bot <https://www.reviewboard.org/downloads/reviewbot/>`_ --
+  Automated code review add-on for Review Board
 
-.. _Beanbag: https://www.beanbaginc.com/
-.. _Review Board: https://www.reviewboard.org/
-.. _RBCommons: https://rbcommons.com/
+If you use kgb, let us know and we'll add you!
 
 
 Installing kgb
@@ -45,17 +88,13 @@ Before you can use kgb, you need to install it. You can do this by typing::
 
     $ pip install kgb
 
-or::
-
-    $ easy_install kgb
-
-kgb supports Python 2.7 and 3.6 through 3.10.
+kgb supports Python 2.7 and 3.6 through 3.10, both CPython and PyPy.
 
 
 Spying for fun and profit
 =========================
 
-Spying is really easy. There are three ways to initiate a spy.
+Spying is really easy. There are four main ways to initiate a spy.
 
 
 1. Creating a SpyAgency
@@ -70,29 +109,35 @@ want. Generally, you'll create one per unit test run. Then you'll call
     from kgb import SpyAgency
 
 
-    class TopSecretTests(unittest.TestCase):
-        def test_mind_control_device(self):
-            mcd = MindControlDevice()
-            agency = SpyAgency()
-            agency.spy_on(mcd.assassinate, call_fake=give_hugs)
+    def test_mind_control_device():
+        mcd = MindControlDevice()
+        agency = SpyAgency()
+        agency.spy_on(mcd.assassinate, call_fake=give_hugs)
 
 
 2. Mixing a SpyAgency into your tests
 -------------------------------------
 
-A SpyAgency can be mixed into your test suite, making it super easy to spy
-all over the place, discretely, without resorting to a separate agency.
-(We call this the "inside job.")
+A ``SpyAgency`` can be mixed into your unittest_-based test suite, making
+it super easy to spy all over the place, discretely, without resorting to a
+separate agency. (We call this the "inside job.")
 
 .. code-block:: python
 
     from kgb import SpyAgency
 
 
+    # Using Python's unittest:
     class TopSecretTests(SpyAgency, unittest.TestCase):
         def test_weather_control(self):
             weather = WeatherControlDevice()
             self.spy_on(weather.start_raining)
+
+
+    # Using pytest with the "spy_agency" fixture (kgb 7+):
+    def test_weather_control(spy_agency):
+        weather = WeatherControlDevice()
+        spy_agency.spy_on(weather.start_raining)
 
 
 3. Using a decorator
@@ -107,6 +152,7 @@ things by using the ``spy_for`` decorator:
     from kgb import SpyAgency
 
 
+    # Using Python's unittest:
     class TopSecretTests(SpyAgency, unittest.TestCase):
         def test_doomsday_device(self):
             dd = DoomsdayDevice()
@@ -117,6 +163,18 @@ things by using the ``spy_for`` decorator:
 
             # Give it your best shot, doomsday device.
             dd.kaboom()
+
+
+    # Using pytest:
+    def test_doomsday_device(spy_agency):
+        dd = DoomsdayDevice()
+
+        @spy_agency.spy_for(dd.kaboom)
+        def _save_world(*args, **kwargs)
+            print('Sprinkles and ponies!')
+
+        # Give it your best shot, doomsday device.
+        dd.kaboom()
 
 
 4. Using a context manager
@@ -130,13 +188,12 @@ agency, just use the ``spy_on`` context manager, like so:
     from kgb import spy_on
 
 
-    class TopSecretTests(unittest.TestCase):
-        def test_the_bomb(self):
-            bomb = Bomb()
+    def test_the_bomb(self):
+        bomb = Bomb()
 
-            with spy_on(bomb.explode, call_original=False):
-                # This won't explode. Phew.
-                bomb.explode()
+        with spy_on(bomb.explode, call_original=False):
+            # This won't explode. Phew.
+            bomb.explode()
 
 
 A spy's abilities
@@ -151,7 +208,7 @@ Creating a spy that calls the original function
 
 .. code-block:: python
 
-    agency.spy_on(obj.function)
+    spy_agency.spy_on(obj.function)
 
 
 When your spy is called, the original function will be called as well.
@@ -163,7 +220,7 @@ Creating a spy that blocks the function call
 
 .. code-block:: python
 
-    agency.spy_on(obj.function, call_original=False)
+    spy_agency.spy_on(obj.function, call_original=False)
 
 
 Useful if you want to know that a function was called, but don't want the
@@ -178,10 +235,10 @@ Creating a spy that reroutes to a fake function
     def _my_fake_function(some_param, *args, **kwargs):
         ...
 
-    agency.spy_on(obj.function, call_fake=my_fake_function)
+    spy_agency.spy_on(obj.function, call_fake=my_fake_function)
 
     # Or, in kgb 6+
-    @agency.spy_for(obj.function)
+    @spy_agency.spy_for(obj.function)
     def _my_fake_function(some_param, *args, **kwargs):
         ...
 
@@ -237,6 +294,8 @@ be ``None`` if nobody's called yet.
 Check if the function was ever called
 -------------------------------------
 
+Mixing in ``SpyAgency`` into a unittest_-based test suite:
+
 .. code-block:: python
 
     # Either one of these is fine.
@@ -248,11 +307,32 @@ Check if the function was ever called
     self.assertFalse(obj.function.called)
 
 
+Or using the pytest_ ``spy_agency`` fixture on kgb 7+:
+
+.. code-block:: python
+
+    spy_agency.assert_spy_called(obj.function)
+    spy_agency.assert_spy_not_called(obj.function)
+
+
+Or using standalone assertion methods on kgb 7+:
+
+.. code-block:: python
+
+    from kgb.asserts import (assert_spy_called,
+                             assert_spy_not_called)
+
+    assert_spy_called(obj.function)
+    assert_spy_not_called(obj.function)
+
+
 If the function was ever called at all, this will let you know.
 
 
 Check if the function was ever called with certain arguments
 ------------------------------------------------------------
+
+Mixing in ``SpyAgency`` into a unittest_-based test suite:
 
 .. code-block:: python
 
@@ -273,7 +353,29 @@ Check if the function was ever called with certain arguments
     self.assertFalse(obj.function.called)
 
 
-The whole call history will be searched. You can provide the entirety of the
+Or using the pytest_ ``spy_agency`` fixture on kgb 7+:
+
+.. code-block:: python
+
+    spy_agency.assert_spy_called_with(obj.function, 'foo', bar='baz')
+    spy_agency.assert_spy_last_called_with(obj.function, 'foo', bar='baz')
+    spy_agency.assert_spy_not_called_with(obj.function, 'foo', bar='baz')
+
+
+Or using standalone assertion methods on kgb 7+:
+
+.. code-block:: python
+
+    from kgb.asserts import (assert_spy_called_with,
+                             assert_spy_last_called_with,
+                             assert_spy_not_called_with)
+
+    assert_spy_called_with(obj.function, 'foo', bar='baz')
+    assert_spy_last_called_with(obj.function, 'foo', bar='baz')
+    assert_spy_not_called_with(obj.function, 'foo', bar='baz')
+
+
+The whole callkhistory will be searched. You can provide the entirety of the
 arguments passed to the function, or you can provide a subset. You can pass
 positional arguments as-is, or pass them by name using keyword arguments.
 
@@ -284,6 +386,8 @@ keyword argument.
 
 Check if the function ever returned a certain value
 ---------------------------------------------------
+
+Mixing in ``SpyAgency`` into a unittest_-based test suite:
 
 .. code-block:: python
 
@@ -300,12 +404,35 @@ Check if the function ever returned a certain value
     self.assertTrue(obj.function.last_returned(42))
 
 
+Or using the pytest_ ``spy_agency`` fixture on kgb 7+:
+
+.. code-block:: python
+
+    spy_agency.assert_spy_returned(obj.function, 42)
+    spy_agency.assert_spy_returned(obj.function.calls[0], 42)
+    spy_agency.assert_spy_last_returned(obj.function, 42)
+
+
+Or using standalone assertion methods on kgb 7+:
+
+.. code-block:: python
+
+    from kgb.asserts import (assert_spy_last_returned,
+                             assert_spy_returned)
+
+    assert_spy_returned(obj.function, 42)
+    assert_spy_returned(obj.function.calls[0], 42)
+    assert_spy_last_returned(obj.function, 42)
+
+
 Handy for checking if some function ever returned what you expected it to, when
 you're not calling that function yourself.
 
 
 Check if a function ever raised a certain type of exception
 -----------------------------------------------------------
+
+Mixing in ``SpyAgency`` into a unittest_-based test suite:
 
 .. code-block:: python
 
@@ -320,6 +447,27 @@ Check if a function ever raised a certain type of exception
     # Check the last call...
     self.assertSpyLastRaised(obj.function, TypeError)
     self.assertTrue(obj.function.last_raised(TypeError))
+
+
+Or using the pytest_ ``spy_agency`` fixture on kgb 7+:
+
+.. code-block:: python
+
+    spy_agency.assert_spy_raised(obj.function, TypeError)
+    spy_agency.assert_spy_raised(obj.function.calls[0], TypeError)
+    spy_agency.assert_spy_last_raised(obj.function, TypeError)
+
+
+Or using standalone assertion methods on kgb 7+:
+
+.. code-block:: python
+
+    from kgb.asserts import (assert_spy_last_raised,
+                             assert_spy_raised)
+
+    assert_spy_raised(obj.function, TypeError)
+    assert_spy_raised(obj.function.calls[0], TypeError)
+    assert_spy_last_raised(obj.function, TypeError)
 
 
 You can also go a step further by checking the exception's message.
@@ -373,15 +521,15 @@ Call the original function
     result = obj.function.call_original('foo', bar='baz')
 
 
-Super, super useful if you want to use ``call_fake=`` or ``@agency.spy_for``
-to wrap a function and track or influence some part of it, but still want the
-original function to do its thing. For instance:
+Super, super useful if you want to use ``call_fake=`` or
+``@spy_agency.spy_for`` to wrap a function and track or influence some part of
+it, but still want the original function to do its thing. For instance:
 
 .. code-block:: python
 
     stored_results = []
 
-    @agency.spy_for(obj.function)
+    @spy_agency.spy_for(obj.function)
     def my_fake_function(*args, **kwargs):
         kwargs['bar'] = 'baz'
         result = obj.function.call_original(*args, **kwargs)

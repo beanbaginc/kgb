@@ -58,13 +58,18 @@ class FunctionSpy(object):
     _spy_map = {}
 
     def __init__(self, agency, func, call_fake=None, call_original=True,
-                 op=None, owner=_UNSET_ARG):
+                 op=None, owner=_UNSET_ARG, func_name=None):
         """Initialize the spy.
 
         This will begin spying on the provided function or method, injecting
         new code into the function to help record how it was called and
         what it returned, and adding methods and state onto the function
         for callers to access in order to get those results.
+
+        Version Added:
+            7.0:
+            Added support for specifying an explicit function name using
+            ``func_name=``.
 
         Version Added:
             5.0:
@@ -104,6 +109,14 @@ class FunctionSpy(object):
                 function (which may happen if the method is decorated and
                 dynamically returns a new function on access), this should
                 be the instance of the object you're spying on.
+
+            func_name (str, optional):
+                An explicit name for the function. This will be used instead
+                of the function's specified name, and is usually a sign of a
+                bad decorator.
+
+                Version Added:
+                    7.0
         """
         # Start off by grabbing the current frame. This will be needed for
         # some errors.
@@ -129,7 +142,8 @@ class FunctionSpy(object):
         # the parameters, making sure everything will be compatible so we
         # don't have unexpected breakages when setting up or calling spies.
         sig = FunctionSig(func=func,
-                          owner=owner)
+                          owner=owner,
+                          func_name=func_name)
         self._sig = sig
 
         # If the caller passed an explicit owner, check to see if it's at all
@@ -175,7 +189,8 @@ class FunctionSpy(object):
                                  'not appear to be a valid function or method.'
                                  % call_fake)
 
-            call_fake_sig = FunctionSig(call_fake)
+            call_fake_sig = FunctionSig(call_fake,
+                                        func_name=func_name)
 
             if not sig.is_compatible_with(call_fake_sig):
                 raise IncompatibleFunctionError(

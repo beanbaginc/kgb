@@ -92,7 +92,7 @@ class BaseFunctionSig(object):
     #: Unbound methods are standard methods on a class.
     TYPE_UNBOUND_METHOD = 2
 
-    def __init__(self, func, owner=_UNSET_ARG):
+    def __init__(self, func, owner=_UNSET_ARG, func_name=None):
         """Initialize the signature.
 
         Subclasses must override this to parse function types/ownership and
@@ -107,10 +107,18 @@ class BaseFunctionSig(object):
                 The owning class, as provided when spying on the function.
                 This is not stored directly (as it may be invalid), but can
                 be used for informative purposes for subclasses.
+
+            func_name (str, optional):
+                An explicit name for the function. This will be used instead
+                of the function's specified name, and is usually a sign of a
+                bad decorator.
+
+                Version Added:
+                    7.0
         """
         self.func = func
         self.func_type = self.TYPE_FUNCTION
-        self.func_name = getattr(func, self.FUNC_NAME_ATTR)
+        self.func_name = func_name or getattr(func, self.FUNC_NAME_ATTR)
         self.owner = None
 
         if hasattr(func, '__func__'):
@@ -291,7 +299,7 @@ class FunctionSigPy2(BaseFunctionSig):
     FUNC_NAME_ATTR = 'func_name'
     METHOD_SELF_ATTR = 'im_self'
 
-    def __init__(self, func, owner=_UNSET_ARG):
+    def __init__(self, func, owner=_UNSET_ARG, func_name=None):
         """Initialize the signature.
 
         Subclasses must override this to parse function types/ownership and
@@ -305,9 +313,18 @@ class FunctionSigPy2(BaseFunctionSig):
                 The owning class, as provided when spying on the function.
                 The value is ignored for methods on which an owner can be
                 calculated, favoring the calculated value instead.
+
+            func_name (str, optional):
+                An explicit name for the function. This will be used instead
+                of the function's specified name, and is usually a sign of a
+                bad decorator.
+
+                Version Added:
+                    7.0
         """
         super(FunctionSigPy2, self).__init__(func=func,
-                                             owner=owner)
+                                             owner=owner,
+                                             func_name=func_name)
 
         func_name = self.func_name
 
@@ -434,7 +451,7 @@ class FunctionSigPy3(BaseFunctionSig):
     FUNC_NAME_ATTR = '__name__'
     METHOD_SELF_ATTR = '__self__'
 
-    def __init__(self, func, owner=_UNSET_ARG):
+    def __init__(self, func, owner=_UNSET_ARG, func_name=None):
         """Initialize the signature.
 
         Subclasses must override this to parse function types/ownership and
@@ -447,9 +464,18 @@ class FunctionSigPy3(BaseFunctionSig):
             owner (type, optional):
                 The owning class, as provided when spying on the function.
                 This is used only when spying on unbound or slippery methods.
+
+            func_name (str, optional):
+                An explicit name for the function. This will be used instead
+                of the function's specified name, and is usually a sign of a
+                bad decorator.
+
+                Version Added:
+                    7.0
         """
         super(FunctionSigPy3, self).__init__(func=func,
-                                             owner=owner)
+                                             owner=owner,
+                                             func_name=func_name)
 
         if not hasattr(inspect, '_signature_from_callable'):
             raise InternalKGBError(
@@ -484,7 +510,26 @@ class FunctionSigPy3(BaseFunctionSig):
         elif '.' in func.__qualname__:
             if owner is not _UNSET_ARG:
                 self.owner = owner
-                self.is_slippery = getattr(owner, func_name) is not func
+
+                try:
+                    self.is_slippery = (
+                        owner is not _UNSET_ARG and
+                        getattr(owner, func_name) is not func
+                    )
+                except AttributeError:
+                    if '<locals>' in func.__qualname__:
+                        logger.warning(
+                            "%r doesn't have a function named \"%s\". This "
+                            "appears to be a decorator that doesn't "
+                            "preserve function names. Try passing "
+                            "func_name= when setting up the spy.",
+                            owner, func_name)
+                    else:
+                        logger.warning(
+                            "%r doesn't have a function named \"%s\". It's "
+                            "not clear why this is. Try passing func_name= "
+                            "when setting up the spy.",
+                            owner, func_name)
 
                 if owner is _UNSET_ARG or inspect.isclass(owner):
                     self.func_type = self.TYPE_UNBOUND_METHOD

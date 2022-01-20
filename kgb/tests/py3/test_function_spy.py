@@ -1,7 +1,11 @@
+import logging
 import sys
 from unittest import SkipTest
 
 from kgb.tests.base import TestCase
+
+
+logger = logging.getLogger('kgb')
 
 
 class FunctionSpyTests(TestCase):
@@ -150,3 +154,55 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(len(func.spy.calls), 1)
         self.assertEqual(func.spy.calls[0].args, (2,))
         self.assertEqual(func.spy.calls[0].kwargs, {'b': 2})
+
+    def test_init_with_unbound_method_decorator_bad_func_name(self):
+        """Testing FunctionSpy construction with a decorator not preserving
+        an unbound method name
+        """
+        def bad_deco(func):
+            def _wrapper(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            return _wrapper
+
+        class MyObject(object):
+            @bad_deco
+            def my_method(self):
+                pass
+
+        self.agency.spy_on(logger.warning)
+
+        self.agency.spy_on(MyObject.my_method,
+                           owner=MyObject)
+
+        self.agency.assertSpyCalledWith(
+            logger.warning,
+            "%r doesn't have a function named \"%s\". This "
+            "appears to be a decorator that doesn't "
+            "preserve function names. Try passing "
+            "func_name= when setting up the spy.",
+            MyObject,
+            '_wrapper')
+
+    def test_init_with_unbound_method_decorator_corrected_func_name(self):
+        """Testing FunctionSpy construction with a decorator not preserving
+        an unbound method name and explicit func_name= provided
+        """
+        def bad_deco(func):
+            def _wrapper(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            return _wrapper
+
+        class MyObject(object):
+            @bad_deco
+            def my_method(self):
+                pass
+
+        self.agency.spy_on(logger.warning)
+
+        self.agency.spy_on(MyObject.my_method,
+                           owner=MyObject,
+                           func_name='my_method')
+
+        self.agency.assertSpyNotCalled(logger.warning)

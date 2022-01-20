@@ -2,6 +2,65 @@
 KGB Releases
 ============
 
+KGB 7 (TBD)
+===========
+
+* Added explicit support for Python 3.10.
+
+* Dropped support for Python 2.6, 3.4, and 3.5.
+
+* kgb now works as a plugin for pytest_.
+
+  Unit tests can use the ``spy_agency`` fixture to have a spy agency created
+  and ready for use. Spies will be automatically unregistered when the test
+  completes.
+
+* Added snake_case versions of all assertion methods in ``SpyAgency``.
+
+  This includes:
+
+  * ``assert_has_spy``
+  * ``assert_spy_call_count``
+  * ``assert_spy_called_with``
+  * ``assert_spy_called``
+  * ``assert_spy_last_called_with``
+  * ``assert_spy_last_raised_message``
+  * ``assert_spy_last_raised``
+  * ``assert_spy_last_returned``
+  * ``assert_spy_not_called_with``
+  * ``assert_spy_not_called``
+  * ``assert_spy_raised_message``
+  * ``assert_spy_raised``
+  * ``assert_spy_returned``
+
+* Added standalone assertion methods in ``kgb.asserts``.
+
+  This provides all the assertion methods shown above, but as standalone
+  methods that can work in any test suite.
+
+* Added a ``func_name=`` argument when setting up spies, to avoid problems
+  with bad decorators.
+
+  When spying on an unbound method wrapped in a decorator that doesn't
+  preserve the function name, errors could occur.
+
+  In this case, you can pass ``func_name=`` when setting up the spy, telling
+  kgb about the original function name it should use.
+
+  This is a special situation. Most spies will not need to set this.
+
+* Updated ``SpyCall.__repr__`` to list keyword arguments in sorted order.
+
+* The package now lists the Python versions that are supported.
+
+  This will help down the road when we begin deprecating older versions of
+  Python, ensuring that ``pip`` will install the appropriate version of kgb
+  for the version of Python.
+
+
+.. _pytest: https://pytest.org
+
+
 KGB 6.1 (24-August-2021)
 ========================
 

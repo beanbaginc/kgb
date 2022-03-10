@@ -1,5 +1,8 @@
-recursive-include contrib *
 include AUTHORS
 include NEWS.rst
 include README.rst
-include ez_setup.py
+include conftest.py
+include setup.cfg
+include tox.ini
+include tests/runtests.py
+include *-requirements.txt

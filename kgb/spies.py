@@ -812,19 +812,123 @@ class FunctionSpy(object):
         # dirty. Somehow, it all really fits in with the idea of spies,
         # though.
         sig = self._sig
-        exec_locals = {}
-        func_code_str = (
-            'def forwarding_call(%(params)s):\n'
-            '    from kgb.spies import FunctionSpy as _kgb_cls\n'
-            '    _kgb_l = locals()\n'
-            ''
-            '    return _kgb_cls._spy_map[%(spy_id)s](%(call_args)s)\n'
+        spy_id = id(self)
+        real_func = self._real_func
+
+        forwarding_call = self._compile_forwarding_call_func(
+            func=func,
+            sig=sig,
+            spy_id=spy_id)
+
+        old_code, new_code = self._build_spy_code(func, forwarding_call)
+        self._old_code = old_code
+        setattr(real_func, FunctionSig.FUNC_CODE_ATTR, new_code)
+
+        # Update our spy lookup map so the proxy function can easily find
+        # the spy instance.
+        FunctionSpy._spy_map[spy_id] = self
+
+        # Update the attributes on the function. we'll be placing all spy
+        # state and some proxy methods pointing to this spy, so that we can
+        # easily access them through the function.
+        real_func.spy = self
+        real_func.__dict__.update(copy.deepcopy(self._FUNC_ATTR_DEFAULTS))
+
+        for proxy_func_name in self._PROXY_METHODS:
+            assert not hasattr(real_func, proxy_func_name)
+            setattr(real_func, proxy_func_name, getattr(self, proxy_func_name))
+
+    def _compile_forwarding_call_func(self, func, sig, spy_id):
+        """Compile a forwarding call function for the spy.
+
+        This will build the Python code for a function that approximates the
+        function we're spying on, with the same function definition and
+        closure behavior.
+
+        Version Added:
+            7.1
+
+        Args:
+            func (callable):
+                The function being spied on.
+
+            sig (kgb.signature.BaseFunctionSig):
+                The function signature to use for this function.
+
+            spy_id (int):
+                The ID used for the spy registration.
+
+        Returns:
+            callable:
+            The resulting forwarding function.
+        """
+        closure_vars = func.__code__.co_freevars
+        use_closure = bool(closure_vars)
+
+        # If the function is in a closure, we'll need to mirror the closure
+        # state by using the referenced variables within _kgb_forwarding_call
+        # and by defining those variables within a closure.
+        #
+        # Start by setting up a string that will use each closure.
+        if use_closure:
+            # This is an efficient way of referencing each variable without
+            # side effects (at least in Python 2.7 through 3.11). Tuple
+            # operations are fast and compact, and don't risk any inadvertent
+            # invocation of the variables.
+            use_closure_vars_str = (
+                '        (%s)\n'
+                % ', '.join(func.__code__.co_freevars)
+            )
+        else:
+            # No closure, so nothing to set up.
+            use_closure_vars_str = ''
+
+        # Now define the forwarding call. This will always be nested within
+        # either a closure of an if statement, letting us build a single
+        # version at the right indentation level, keeping this as fast and
+        # portable as possible.
+        forwarding_call_str = (
+            '    def _kgb_forwarding_call(%(params)s):\n'
+            '        from kgb.spies import FunctionSpy as _kgb_cls\n'
+            '%(use_closure_vars)s'
+            '        _kgb_l = locals()\n'
+            '        return _kgb_cls._spy_map[%(spy_id)s](%(call_args)s)\n'
             % {
-                'params': sig.format_arg_spec(),
                 'call_args': sig.format_forward_call_args(),
-                'spy_id': id(self),
+                'params': sig.format_arg_spec(),
+                'spy_id': spy_id,
+                'use_closure_vars': use_closure_vars_str,
             }
         )
+
+        if use_closure:
+            # We now need to put _kgb_forwarding_call in a closure, to mirror
+            # the behavior of the spied function. The closure will provide
+            # the closure variables, and will return the function we can
+            # later use.
+            func_code_str = (
+                'def _kgb_forwarding_call_closure(%(params)s):\n'
+                '%(forwarding_call)s'
+                '    return _kgb_forwarding_call\n'
+                % {
+                    'forwarding_call': forwarding_call_str,
+                    'params': ', '.join(
+                        '%s=None' % _var
+                        for _var in closure_vars
+                    )
+                }
+            )
+        else:
+            # No closure, so just define the function as-is. We will need to
+            # wrap in an "if 1:" though, just to ensure indentation is fine.
+            func_code_str = (
+                'if 1:\n'
+                '%s'
+                % forwarding_call_str
+            )
+
+        # We can now build our function.
+        exec_locals = {}
 
         try:
             eval(compile(func_code_str, '<string>', 'exec'),
@@ -840,60 +944,97 @@ class FunctionSpy(object):
                     'func': func,
                 })
 
-        forwarding_call = exec_locals['forwarding_call']
+        # Grab the resulting compiled function out of the locals.
+        if use_closure:
+            # It's in our closure, so call that and get the result.
+            forwarding_call = exec_locals['_kgb_forwarding_call_closure']()
+        else:
+            forwarding_call = exec_locals['_kgb_forwarding_call']
+
         assert forwarding_call is not None
 
+        return forwarding_call
+
+    def _build_spy_code(self, func, forwarding_call):
+        """Build a CodeType to inject into the spied function.
+
+        This will create a function bytecode object that contains a mix of
+        attributes from the original function and the forwarding call. The
+        result can be injected directly into the spied function, containing
+        just the right data to impersonate the function and call our own
+        logic.
+
+        Version Added:
+            7.1
+
+        Args:
+            func (callable):
+                The function being spied on.
+
+            forwarding_call (callable):
+                The spy forwarding call we built.
+
+        Returns:
+            tuple:
+            A 2-tuple containing:
+
+            1. The spied function's code object (:py:class:`types.CodeType`).
+            1. The new spy code object (:py:class:`types.CodeType`).
+        """
         old_code = getattr(func, FunctionSig.FUNC_CODE_ATTR)
         temp_code = getattr(forwarding_call, FunctionSig.FUNC_CODE_ATTR)
 
-        self._old_code = old_code
+        assert old_code != temp_code
 
-        # Build the new CodeType. This will be a combination of our proxy
-        # function and the original function, creating something we can
-        # put back into the function we're spying on.
-        code_args = [temp_code.co_argcount]
+        if hasattr(old_code, 'replace'):
+            # Python >= 3.8
+            #
+            # It's important we replace the code instead of building a new
+            # one when possible. On Python 3.11, this will ensure that
+            # state needed for exceptions (co_positions()) will be set
+            # correctly.
+            replace_kwargs = {
+                'co_name': old_code.co_name,
+                'co_freevars': old_code.co_freevars,
+                'co_cellvars': old_code.co_cellvars,
+            }
 
-        if pyver[0] >= 3:
-            if pyver[1] >= 8:
-                code_args.append(temp_code.co_posonlyargcount)
+            if pyver >= (3, 11):
+                replace_kwargs['co_qualname'] = old_code.co_qualname
 
-            code_args.append(temp_code.co_kwonlyargcount)
+            new_code = temp_code.replace(**replace_kwargs)
+        else:
+            # Python <= 3.7
+            #
+            # We have to build this manually, using a combination of the
+            # two. We won't bother with anything newer than Python 3.7.
+            code_args = [temp_code.co_argcount]
 
-        code_args += [
-            temp_code.co_nlocals,
-            temp_code.co_stacksize,
-            temp_code.co_flags,
-            temp_code.co_code,
-            temp_code.co_consts,
-            temp_code.co_names,
-            temp_code.co_varnames,
-            temp_code.co_filename,
-            old_code.co_name,
-            temp_code.co_firstlineno,
-            temp_code.co_lnotab,
-            old_code.co_freevars,
-            old_code.co_cellvars,
-        ]
+            if pyver >= (3, 0):
+                code_args.append(temp_code.co_kwonlyargcount)
 
-        real_func = self._real_func
+            code_args += [
+                temp_code.co_nlocals,
+                temp_code.co_stacksize,
+                temp_code.co_flags,
+                temp_code.co_code,
+                temp_code.co_consts,
+                temp_code.co_names,
+                temp_code.co_varnames,
+                temp_code.co_filename,
+                old_code.co_name,
+                temp_code.co_firstlineno,
+                temp_code.co_lnotab,
+                old_code.co_freevars,
+                old_code.co_cellvars,
+            ]
 
-        new_code = types.CodeType(*code_args)
-        setattr(real_func, FunctionSig.FUNC_CODE_ATTR, new_code)
-        assert old_code != new_code
+            new_code = types.CodeType(*code_args)
 
-        # Update our spy lookup map so the proxy function can easily find
-        # the spy instance.
-        FunctionSpy._spy_map[id(self)] = self
+        assert new_code != old_code
+        assert new_code != temp_code
 
-        # Update the attributes on the function. we'll be placing all spy
-        # state and some proxy methods pointing to this spy, so that we can
-        # easily access them through the function.
-        real_func.spy = self
-        real_func.__dict__.update(copy.deepcopy(self._FUNC_ATTR_DEFAULTS))
-
-        for proxy_func_name in self._PROXY_METHODS:
-            assert not hasattr(real_func, proxy_func_name)
-            setattr(real_func, proxy_func_name, getattr(self, proxy_func_name))
+        return old_code, new_code
 
     def _clone_function(self, func, code=None):
         """Clone a function, optionally providing new bytecode.

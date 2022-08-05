@@ -4,8 +4,10 @@ import functools
 import inspect
 import re
 import sys
+import traceback
 import types
 import unittest
+from contextlib import contextmanager
 from warnings import catch_warnings
 
 from kgb.errors import ExistingSpyError, IncompatibleFunctionError
@@ -70,6 +72,11 @@ def something_awesome():
 
 def fake_something_awesome():
     return r'\o/'
+
+
+@contextmanager
+def do_context(a=1, b=2):
+    yield a + b
 
 
 class AdderObject(object):
@@ -650,6 +657,133 @@ class FunctionSpyTests(TestCase):
             a=2,
             b=5))
 
+    def test_call_with_fake_and_contextmanager(self):
+        """Testing FunctionSpy calls with call_fake and context manager"""
+        @contextmanager
+        def fake_do_context(a=1, b=2):
+            yield a * b
+
+        self.agency.spy_on(do_context,
+                           call_fake=fake_do_context)
+
+        with do_context(a=5) as ctx:
+            result = ctx
+
+        self.assertEqual(result, 10)
+        self.assertEqual(len(do_context.calls), 1)
+        self.assertEqual(do_context.calls[0].args, ())
+        self.assertEqual(do_context.calls[0].kwargs, {'a': 5})
+
+    def test_call_with_fake_and_contextmanager_func_raises_exception(self):
+        """Testing FunctionSpy calls with call_fake and context manager and
+        function raises exception
+        """
+        e = Exception('oh no')
+
+        @contextmanager
+        def fake_do_context(*args, **kwargs):
+            raise e
+
+        self.agency.spy_on(do_context,
+                           call_fake=fake_do_context)
+
+        with self.assertRaisesRegex(Exception, 'oh no'):
+            with do_context(a=5):
+                pass
+
+        self.assertEqual(len(do_context.calls), 1)
+        self.assertEqual(do_context.calls[0].args, ())
+        self.assertEqual(do_context.calls[0].kwargs, {'a': 5})
+        self.assertEqual(do_context.calls[0].exception, e)
+
+    def test_call_with_fake_and_contextmanager_body_raises_exception(self):
+        """Testing FunctionSpy calls with call_fake and context manager and
+        context body raises exception
+        """
+        e = Exception('oh no')
+
+        @contextmanager
+        def fake_do_context(a=1, b=2):
+            yield a * b
+
+        self.agency.spy_on(do_context,
+                           call_fake=fake_do_context)
+
+        with self.assertRaisesRegex(Exception, 'oh no'):
+            with do_context(a=5):
+                raise e
+
+        self.assertEqual(len(do_context.calls), 1)
+        self.assertEqual(do_context.calls[0].args, ())
+        self.assertEqual(do_context.calls[0].kwargs, {'a': 5})
+        self.assertIsNone(do_context.calls[0].exception)
+
+    def test_call_with_exception(self):
+        e = ValueError('oh no')
+
+        def orig_func(arg1=None, arg2=None):
+            # Create enough of a difference in code positions between this
+            # and the forwarding functions, to ensure the exception's
+            # position count is higher than that of the forwarding function.
+            #
+            # This is important for sanity checks on Python 3.11.
+            try:
+                if 1:
+                    if 2:
+                        try:
+                            a = 1
+                            b = a
+                            a = 2
+                        except Exception:
+                            raise
+                    else:
+                        c = [1, 2, 3, 4, 5]
+                        a = c
+            except Exception:
+                raise
+
+            for i in range(10):
+                try:
+                    d = [1, 2, 3, 4, 5]
+                    a = d
+                    b = a
+                    d = b
+                except Exception:
+                    raise
+
+            # We should be good. We'll verify counts later.
+            raise e
+
+        # Verify the above.
+        orig_func_code = orig_func.__code__
+        supports_co_positions = hasattr(orig_func_code, 'co_positions')
+
+        if supports_co_positions:
+            orig_positions_count = len(list(orig_func_code.co_positions()))
+        else:
+            orig_positions_count = None
+
+        # Now spy.
+        self.agency.spy_on(orig_func)
+
+        if supports_co_positions:
+            spy_positions_count = len(list(orig_func.__code__.co_positions()))
+
+            # Make sure we had enough padding up above.
+            self.assertGreater(orig_positions_count, spy_positions_count)
+
+        # Now test.
+        try:
+            orig_func()
+        except Exception as ex:
+            # This should fail if we've built the CodeType wrong and have a
+            # resulting offset issue. The act of pretty-printing the exception
+            # triggers the noticeable co_positions() issue.
+            traceback.print_exception(ex)
+
+        self.assertEqual(len(orig_func.calls), 1)
+        self.assertIs(orig_func.calls[0].exception, e)
+
     def test_call_with_fake_and_args(self):
         """Testing FunctionSpy calls with call_fake and arguments"""
         obj = MathClass()
@@ -686,7 +820,6 @@ class FunctionSpyTests(TestCase):
         self.agency.spy_on(obj.do_math, call_fake=fake_do_math)
         result = obj.do_math(a=10, b=20)
 
-        print(obj.do_math.calls)
         self.assertEqual(result, -10)
         self.assertEqual(len(obj.do_math.calls), 1)
         self.assertEqual(len(obj.do_math.calls[0].args), 0)
@@ -1019,6 +1152,21 @@ class FunctionSpyTests(TestCase):
         func()
         self.assertTrue(func.called)
         self.assertEqual(d, {'called': True})
+
+    def test_call_with_inline_function_using_closure_vars_and_args(self):
+        """Testing FunctionSpy calls for inline function using a closure's
+        variables and function with arguments
+        """
+        d = {}
+
+        def func(a, b, c):
+            d['call_result'] = a + b + c
+
+        self.agency.spy_on(func)
+
+        func(1, 2, c=3)
+        self.assertTrue(func.called)
+        self.assertEqual(d, {'call_result': 6})
 
     def test_call_with_function_providing_closure_vars(self):
         """Testing FunctionSpy calls for function providing variables for an

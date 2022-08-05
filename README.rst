@@ -88,7 +88,7 @@ Before you can use kgb, you need to install it. You can do this by typing::
 
     $ pip install kgb
 
-kgb supports Python 2.7 and 3.6 through 3.10, both CPython and PyPy.
+kgb supports Python 2.7 and 3.6 through 3.11, both CPython and PyPy.
 
 
 Spying for fun and profit

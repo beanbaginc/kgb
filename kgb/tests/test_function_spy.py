@@ -779,7 +779,7 @@ class FunctionSpyTests(TestCase):
             # This should fail if we've built the CodeType wrong and have a
             # resulting offset issue. The act of pretty-printing the exception
             # triggers the noticeable co_positions() issue.
-            traceback.print_exception(ex)
+            traceback.print_exception(*sys.exc_info())
 
         self.assertEqual(len(orig_func.calls), 1)
         self.assertIs(orig_func.calls[0].exception, e)

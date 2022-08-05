@@ -738,7 +738,9 @@ class FunctionSpyTests(TestCase):
         })
 
     def test_call_with_original_false_and_kwargs(self):
-        """Testing FunctionSpy calls with call_original=False and keyword arguments"""
+        """Testing FunctionSpy calls with call_original=False and keyword
+        arguments
+        """
         obj = MathClass()
 
         self.agency.spy_on(obj.do_math, call_original=False)
@@ -841,7 +843,8 @@ class FunctionSpyTests(TestCase):
         })
 
     def test_call_with_original_true_and_bound_method(self):
-        """Testing FunctionSpy calls with call_original=True and bound method"""
+        """Testing FunctionSpy calls with call_original=True and bound method
+        """
         obj = MathClass()
 
         self.agency.spy_on(obj.do_math, call_original=True)

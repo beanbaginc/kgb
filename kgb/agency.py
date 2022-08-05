@@ -5,7 +5,6 @@ from __future__ import unicode_literals
 from pprint import pformat
 from unittest.util import safe_repr
 
-from kgb.pycompat import iteritems
 from kgb.signature import _UNSET_ARG
 from kgb.spies import FunctionSpy, SpyCall
 from kgb.utils import format_spy_kwargs

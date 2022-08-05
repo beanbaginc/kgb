@@ -311,7 +311,7 @@ class SpyOpMatchAnyTests(TestCase):
             'do_math was not called with any expected arguments.'
         )
 
-        with self.assertRaisesRegexp(AssertionError, expected_message):
+        with self.assertRaisesRegex(AssertionError, expected_message):
             obj.do_math(a=4, b=9)
 
 
@@ -532,7 +532,7 @@ class SpyOpMatchInOrderTests(TestCase):
             "kwargs={'a': 4, 'b': 9}"
         )
 
-        with self.assertRaisesRegexp(AssertionError, expected_message):
+        with self.assertRaisesRegex(AssertionError, expected_message):
             obj.do_math(a=4, b=9)
 
     def test_with_extra_call(self):
@@ -558,7 +558,7 @@ class SpyOpMatchInOrderTests(TestCase):
             "returned=None, raised=None)>"
         )
 
-        with self.assertRaisesRegexp(UnexpectedCallError, expected_message):
+        with self.assertRaisesRegex(UnexpectedCallError, expected_message):
             obj.do_math(a=4, b=9)
 
 
@@ -574,7 +574,7 @@ class SpyOpRaiseTests(TestCase):
             do_math,
             op=SpyOpRaise(ValueError('foo')))
 
-        with self.assertRaisesRegexp(ValueError, 'foo'):
+        with self.assertRaisesRegex(ValueError, 'foo'):
             do_math(5, 3)
 
     def test_with_classmethod(self):
@@ -584,7 +584,7 @@ class SpyOpRaiseTests(TestCase):
             owner=MathClass,
             op=SpyOpRaise(ValueError('foo')))
 
-        with self.assertRaisesRegexp(ValueError, 'foo'):
+        with self.assertRaisesRegex(ValueError, 'foo'):
             MathClass.class_do_math(5, 3)
 
     def test_with_unbound_method(self):
@@ -596,7 +596,7 @@ class SpyOpRaiseTests(TestCase):
 
         obj = MathClass()
 
-        with self.assertRaisesRegexp(ValueError, 'foo'):
+        with self.assertRaisesRegex(ValueError, 'foo'):
             obj.do_math(a=4, b=3)
 
 
@@ -661,7 +661,7 @@ class SpyOpReturnInOrderTests(TestCase):
             "raised=None)>"
         )
 
-        with self.assertRaisesRegexp(UnexpectedCallError, message):
+        with self.assertRaisesRegex(UnexpectedCallError, message):
             do_math(5, 3)
 
     def test_with_classmethod(self):
@@ -685,7 +685,7 @@ class SpyOpReturnInOrderTests(TestCase):
             "'b': 3}, returned=None, raised=None)>"
         )
 
-        with self.assertRaisesRegexp(UnexpectedCallError, message):
+        with self.assertRaisesRegex(UnexpectedCallError, message):
             MathClass.class_do_math(5, 3)
 
     def test_with_unbound_method(self):
@@ -711,5 +711,5 @@ class SpyOpReturnInOrderTests(TestCase):
             "'b': 3}, returned=None, raised=None)>"
         )
 
-        with self.assertRaisesRegexp(UnexpectedCallError, message):
+        with self.assertRaisesRegex(UnexpectedCallError, message):
             obj.do_math(a=4, b=3)

@@ -3,12 +3,41 @@ from __future__ import unicode_literals
 import functools
 import inspect
 import re
+import sys
 import types
+import unittest
+from warnings import catch_warnings
 
 from kgb.errors import ExistingSpyError, IncompatibleFunctionError
 from kgb.pycompat import text_type
 from kgb.signature import FunctionSig
 from kgb.tests.base import MathClass, TestCase
+
+
+has_getargspec = hasattr(inspect, 'getargspec')
+has_getfullargspec = hasattr(inspect, 'getfullargspec')
+
+
+def require_getargspec(func):
+    """Require getargspec for a unit test.
+
+    If not available, the test will be skippd.
+
+    Args:
+        func (callable):
+            The unit test function to decorate.
+    """
+    @functools.wraps(func)
+    def _wrap(*args, **kwargs):
+        if has_getargspec:
+            with catch_warnings(record=True):
+                return func(*args, **kwargs)
+        else:
+            raise unittest.SkipTest(
+                'inspect.getargspec is not available on Python %s.%s.%s'
+                % sys.version_info[:3])
+
+    return _wrap
 
 
 def do_math(a=1, b=2, *args, **kwargs):
@@ -40,7 +69,7 @@ def something_awesome():
 
 
 def fake_something_awesome():
-    return '\o/'
+    return r'\o/'
 
 
 class AdderObject(object):
@@ -578,7 +607,7 @@ class FunctionSpyTests(TestCase):
                            call_fake=fake_something_awesome)
         result = something_awesome()
 
-        self.assertEqual(result, '\o/')
+        self.assertEqual(result, r'\o/')
         self.assertEqual(len(something_awesome.spy.calls), 1)
         self.assertEqual(len(something_awesome.spy.calls[0].args), 0)
         self.assertEqual(len(something_awesome.spy.calls[0].kwargs), 0)
@@ -1204,7 +1233,7 @@ class FunctionSpyTests(TestCase):
             'is an unbound method.'
         )
 
-        with self.assertRaisesRegexp(TypeError, message):
+        with self.assertRaisesRegex(TypeError, message):
             obj.add_one.call_original(5)
 
     def test_called(self):
@@ -1640,6 +1669,7 @@ class FunctionSpyTests(TestCase):
             '<Spy for classmethod MathClass.class_do_math of %r (0 calls)>'
             % MathClass)
 
+    @require_getargspec
     def test_getargspec_with_function(self):
         """Testing FunctionSpy in inspect.getargspec() with function"""
         self.agency.spy_on(do_math)
@@ -1650,6 +1680,7 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(keywords, 'kwargs')
         self.assertEqual(defaults, (1, 2))
 
+    @require_getargspec
     def test_getargspec_with_bound_method(self):
         """Testing FunctionSpy in inspect.getargspec() with bound method"""
         obj = MathClass()
@@ -1661,6 +1692,7 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(keywords, 'kwargs')
         self.assertEqual(defaults, (1, 2))
 
+    @require_getargspec
     def test_getargspec_with_unbound_method(self):
         """Testing FunctionSpy in inspect.getargspec() with unbound method"""
         self.agency.spy_on(MathClass.do_math)
@@ -1672,6 +1704,7 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(keywords, 'kwargs')
         self.assertEqual(defaults, (1, 2))
 
+    @require_getargspec
     def test_getargspec_with_classmethod(self):
         """Testing FunctionSpy in inspect.getargspec() with classmethod"""
         obj = MathClass()

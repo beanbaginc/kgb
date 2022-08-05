@@ -4,7 +4,7 @@ import re
 import sys
 import textwrap
 
-if sys.version_info[:2] >= (2, 7):
+if sys.version_info[:2] > (2, 7):
     import unittest
 else:
     import unittest2 as unittest

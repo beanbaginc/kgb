@@ -600,6 +600,101 @@ class SpyOpRaiseTests(TestCase):
             obj.do_math(a=4, b=3)
 
 
+class SpyOpRaiseInOrderTests(TestCase):
+    """Unit tests for kgb.ops.SpyOpRaiseInOrder."""
+
+    def test_with_function(self):
+        """Testing SpyOpRaiseInOrder with function"""
+        def do_math(a, b):
+            return a + b
+
+        self.agency.spy_on(
+            do_math,
+            op=SpyOpRaiseInOrder([
+                ValueError('foo'),
+                KeyError('bar'),
+                AttributeError('foobar'),
+            ]))
+
+        with self.assertRaisesRegex(ValueError, 'foo'):
+            do_math(5, 3)
+
+        with self.assertRaisesRegex(KeyError, 'bar'):
+            do_math(5, 3)
+
+        with self.assertRaisesRegex(AttributeError, 'foobar'):
+            do_math(5, 3)
+
+        message = re.escape(
+            "do_math was called 4 time(s), but only 3 call(s) were expected. "
+            "Latest call: <SpyCall(args=(5, 3), kwargs={}, returned=None, "
+            "raised=None)>"
+        )
+
+        with self.assertRaisesRegex(UnexpectedCallError, message):
+            do_math(5, 3)
+
+    def test_with_classmethod(self):
+        """Testing SpyOpRaiseInOrder with classmethod"""
+        self.agency.spy_on(
+            MathClass.class_do_math,
+            owner=MathClass,
+            op=SpyOpRaiseInOrder([
+                ValueError('foo'),
+                KeyError('bar'),
+                AttributeError('foobar'),
+            ]))
+
+        with self.assertRaisesRegex(ValueError, 'foo'):
+            MathClass.class_do_math(5, 3)
+
+        with self.assertRaisesRegex(KeyError, 'bar'):
+            MathClass.class_do_math(5, 3)
+
+        with self.assertRaisesRegex(AttributeError, 'foobar'):
+            MathClass.class_do_math(5, 3)
+
+        message = re.escape(
+            "class_do_math was called 4 time(s), but only 3 call(s) were "
+            "expected. Latest call: <SpyCall(args=(), kwargs={'a': 5, "
+            "'b': 3}, returned=None, raised=None)>"
+        )
+
+        with self.assertRaisesRegex(UnexpectedCallError, message):
+            MathClass.class_do_math(5, 3)
+
+    def test_with_unbound_method(self):
+        """Testing SpyOpRaiseInOrder with unbound method"""
+        self.agency.spy_on(
+            MathClass.do_math,
+            owner=MathClass,
+            op=SpyOpRaiseInOrder([
+                ValueError('foo'),
+                KeyError('bar'),
+                AttributeError('foobar'),
+            ]))
+
+        obj = MathClass()
+
+        with self.assertRaisesRegex(ValueError, 'foo'):
+            obj.do_math(a=4, b=3)
+
+        with self.assertRaisesRegex(KeyError, 'bar'):
+            obj.do_math(a=4, b=3)
+
+        with self.assertRaisesRegex(AttributeError, 'foobar'):
+            obj.do_math(a=4, b=3)
+
+        message = re.escape(
+            "do_math was called 4 time(s), but only 3 call(s) were expected. "
+            "Latest call: <SpyCall(args=(), kwargs={'a': 5, 'b': 3}, "
+            "returned=None, raised=None)>"
+        )
+
+        with self.assertRaisesRegex(UnexpectedCallError, message):
+            obj.do_math(5, 3)
+
+
 class SpyOpReturnTests(TestCase):
     """Unit tests for kgb.ops.SpyOpReturn."""
 

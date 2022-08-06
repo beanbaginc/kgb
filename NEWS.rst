@@ -2,6 +2,14 @@
 kgb Releases
 ============
 
+kgb 7.1.1 (6-August-2022)
+=========================
+
+* Small packaging update to include the ``LICENSE`` file.
+
+  No code changes.
+
+
 kgb 7.1 (4-August-2022)
 =======================
 

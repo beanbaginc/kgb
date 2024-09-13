@@ -1188,6 +1188,24 @@ class FunctionSpyTests(TestCase):
         self.assertTrue(func.called)
         self.assertEqual(d, {'called': True})
 
+    def test_call_with_function_providing_closure_access_args(self):
+        """Testing FunctionSpy calls with an inline function accessing
+        parent's arguments
+        """
+        # NOTE: This originally caused a crash on Python 3.13 beta 2.
+        #       See: https://github.com/beanbaginc/kgb/issues/11
+        def func(arg):
+            def inline_func():
+                print(arg)
+
+            return 123
+
+        self.agency.spy_on(func)
+
+        d = func(42)
+        self.assertEqual(d, 123)
+        self.assertTrue(func.called)
+
     def test_call_with_bound_method_with_list_comprehension_and_self(self):
         """Testing FunctionSpy calls for bound method using a list
         comprehension referencing 'self'

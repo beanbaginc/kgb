@@ -993,10 +993,14 @@ class FunctionSpy(object):
             # one when possible. On Python 3.11, this will ensure that
             # state needed for exceptions (co_positions()) will be set
             # correctly.
+            #
+            # NOTE: Prior to kgb 7.2, we had set co_freevars and co_vellvars
+            #       here. This caused crashes with Python 3.13 beta 2 (the
+            #       latest release as of this writing -- June 19, 2024). We
+            #       don't appear to actually need or want to set these on
+            #       Python 3, so we removed this.
             replace_kwargs = {
                 'co_name': old_code.co_name,
-                'co_freevars': old_code.co_freevars,
-                'co_cellvars': old_code.co_cellvars,
             }
 
             if pyver >= (3, 11):

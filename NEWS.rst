@@ -2,6 +2,15 @@
 kgb Releases
 ============
 
+kgb 7.2 (3-November-2024)
+=========================
+
+* Added support for Python 3.13.
+
+  We've fixed crashes with some changes made to how Python 3.13 builds and
+  executes functions, and added explicit testing and support going forward.
+
+
 kgb 7.1.1 (6-August-2022)
 =========================
 

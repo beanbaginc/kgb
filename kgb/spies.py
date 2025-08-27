@@ -1006,6 +1006,33 @@ class FunctionSpy(object):
             if pyver >= (3, 11):
                 replace_kwargs['co_qualname'] = old_code.co_qualname
 
+            # Python 3.13+ includes a warning when assigning a code object if
+            # the generator flag doesn't match. The actual bug that caused them
+            # to add this warning can be found here:
+            #
+            #     https://github.com/python/cpython/issues/81137
+            #
+            # This is a pretty isolated, unique case where the user was
+            # replacing the code object for a lambda with the gi_code from a
+            # generator expression, causing CPython to crash. This is purely
+            # an issue with the gi_code object, and does not affect generator
+            # functions (or even a lambda that returns a generator expression)
+            # in the same way, so kgb's use is fine. We therefore mirror these
+            # flags onto our replacement code object to prevent the warning.
+            #
+            # Our forwarding function won't have any of these flags set, so we
+            # can just copy the positive case for all of them if they exist on
+            # the function we're replacing.
+            #
+            # We only do this on 3.11+ because on earlier versions this causes
+            # the spy to not execute.
+            if pyver >= (3, 11):
+                mirror_flags = old_code.co_flags & (
+                    inspect.CO_GENERATOR |
+                    inspect.CO_COROUTINE |
+                    inspect.CO_ASYNC_GENERATOR)
+                replace_kwargs['co_flags'] = temp_code.co_flags | mirror_flags
+
             new_code = temp_code.replace(**replace_kwargs)
         else:
             # Python <= 3.7

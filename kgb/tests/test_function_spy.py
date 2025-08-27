@@ -7,8 +7,8 @@ import sys
 import traceback
 import types
 import unittest
+import warnings
 from contextlib import contextmanager
-from warnings import catch_warnings
 
 from kgb.errors import ExistingSpyError, IncompatibleFunctionError
 from kgb.pycompat import text_type
@@ -23,7 +23,7 @@ has_getfullargspec = hasattr(inspect, 'getfullargspec')
 def require_getargspec(func):
     """Require getargspec for a unit test.
 
-    If not available, the test will be skippd.
+    If not available, the test will be skipped.
 
     Args:
         func (callable):
@@ -32,7 +32,7 @@ def require_getargspec(func):
     @functools.wraps(func)
     def _wrap(*args, **kwargs):
         if has_getargspec:
-            with catch_warnings(record=True):
+            with warnings.catch_warnings(record=True):
                 return func(*args, **kwargs)
         else:
             raise unittest.SkipTest(
@@ -1885,3 +1885,34 @@ class FunctionSpyTests(TestCase):
         self.assertEqual(varargs, 'args')
         self.assertEqual(keywords, 'kwargs')
         self.assertEqual(defaults, (2, 5))
+
+    def test_spy_on_generator(self) -> None:
+        """Testing FunctionSpy with a generator function"""
+        # Python 3.13+ added a deprecation warning when replacing a generator
+        # function. This test verifies that our fix for this does not trigger a
+        # DeprecationWarning. See the comments in FunctionSpy._build_spy_code
+        # for details on the issue.
+        def _generator_function():
+            yield 'a'
+            yield 'b'
+            yield 'c'
+
+        def _fake_generator():
+            yield 'x'
+            yield 'y'
+            yield 'z'
+
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', DeprecationWarning)
+
+            spy = self.agency.spy_on(_generator_function,
+                                     call_fake=_fake_generator)
+            results = list(_generator_function())
+            self.assertEqual(results, ['x', 'y', 'z'])
+            spy.unspy()
+
+            spy = self.agency.spy_on(_generator_function)
+
+            results = list(_generator_function())
+            self.assertEqual(results, ['a', 'b', 'c'])
+            spy.unspy()

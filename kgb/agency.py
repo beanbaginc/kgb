@@ -152,6 +152,32 @@ class SpyAgency(object):
 
         self.spies.clear()
 
+    def get_spy(self, func):
+        """Return the spy for a function.
+
+        This method is a helper to prevent type checkers from complaining when
+        accessing data about a spy.
+
+        Version Added:
+            7.3
+
+        Args:
+            func (callable):
+                The function to return the spy for.
+
+        Returns:
+            kgb.spies.FunctionSpy:
+            The function's spy.
+
+        Raises:
+            ValueError:
+                The provided function was not spied on.
+        """
+        try:
+            return func.spy
+        except AttributeError:
+            raise ValueError('Function %r has not been spied on.' % func)
+
     def assertHasSpy(self, spy):
         """Assert that a function has a spy.
 

@@ -215,6 +215,36 @@ class SpyAgency(object):
             self._kgb_assert_fail('%s was not called.'
                                   % self._format_spy_or_call(spy))
 
+    def assertSpyCalledOnce(self, spy):
+        """Assert that a function has been called exactly once.
+
+        This will imply :py:meth:`assertHasSpy`.
+
+        Args:
+            spy (callable or kgb.spies.FunctionSpy):
+                The function or spy to check.
+
+        Raises:
+            AssertionError:
+                The function was not called.
+        """
+        self.assertSpyCalled(spy)
+
+        # The spy's been called at least once. If it's called more than once,
+        # show the calls.
+        call_count = len(spy.calls)
+
+        if call_count > 1:
+            self._kgb_assert_fail(
+                '%s was not called exactly 1 time. It was called %d times:\n'
+                '\n'
+                '%s'
+                % (
+                    self._format_spy_or_call(spy),
+                    call_count,
+                    self._format_spy_calls(spy, self._format_spy_call_args),
+                ))
+
     def assertSpyNotCalled(self, spy):
         """Assert that a function has not been called.
 
@@ -298,7 +328,8 @@ class SpyAgency(object):
                 The function, spy, or call to check.
 
             *expected_args (tuple):
-                Position arguments expected to be provided in any of the calls.
+                Positional arguments expected to be provided in any of the
+                calls.
 
             **expected_kwargs (dict):
                 Keyword arguments expected to be provided in any of the calls.
@@ -340,6 +371,60 @@ class SpyAgency(object):
                             self._format_spy_call_args),
                     ))
 
+    def assertSpyCalledOnceWith(self, spy, *expected_args, **expected_kwargs):
+        """Assert that a function was called once with the given arguments.
+
+        This will fail if there was more than one call to the function.
+
+        This will imply :py:meth:`assertSpyCalledOnce`.
+
+        Args:
+            spy (callable or kgb.spies.FunctionSpy):
+                The function or spy to check.
+
+            *expected_args (tuple):
+                Positional arguments expected to be provided in any of the
+                calls.
+
+            **expected_kwargs (dict):
+                Keyword arguments expected to be provided in any of the calls.
+
+        Raises:
+            AssertionError:
+                The function was not called with the provided arguments.
+        """
+        self.assertSpyCalledOnce(spy)
+
+        if not spy.called_with(*expected_args, **expected_kwargs):
+            if isinstance(spy, SpyCall):
+                self._kgb_assert_fail(
+                    'This call to %s was not passed args=%s, kwargs=%s.\n'
+                    '\n'
+                    'It was called with:\n'
+                    '\n'
+                    '%s'
+                    % (
+                        self._format_spy_or_call(spy),
+                        safe_repr(expected_args),
+                        format_spy_kwargs(expected_kwargs),
+                        self._format_spy_call_args(spy),
+                    ))
+            else:
+                self._kgb_assert_fail(
+                    'No call to %s was passed args=%s, kwargs=%s.\n'
+                    '\n'
+                    'The following calls were recorded:\n'
+                    '\n'
+                    '%s'
+                    % (
+                        self._format_spy_or_call(spy),
+                        safe_repr(expected_args),
+                        format_spy_kwargs(expected_kwargs),
+                        self._format_spy_calls(
+                            spy,
+                            self._format_spy_call_args),
+                    ))
+
     def assertSpyNotCalledWith(self, spy_or_call, *expected_args,
                                **expected_kwargs):
         """Assert that a function was not called with the given arguments.
@@ -353,7 +438,7 @@ class SpyAgency(object):
                 The function, spy, or call to check.
 
             *expected_args (tuple):
-                Position arguments not expected to be provided in any of the
+                Positional arguments not expected to be provided in any of the
                 calls.
 
             **expected_kwargs (dict):
@@ -404,7 +489,7 @@ class SpyAgency(object):
                 The function or spy to check.
 
             *expected_args (tuple):
-                Position arguments expected to be provided in the last call.
+                Positional arguments expected to be provided in the last call.
 
             **expected_kwargs (dict):
                 Keyword arguments expected to be provided in the last call.
@@ -919,9 +1004,11 @@ class SpyAgency(object):
     # Useful for pytest and other uses.
     assert_has_spy = assertHasSpy
     assert_spy_called = assertSpyCalled
+    assert_spy_called_once = assertSpyCalledOnce
     assert_spy_not_called = assertSpyNotCalled
     assert_spy_call_count = assertSpyCallCount
     assert_spy_called_with = assertSpyCalledWith
+    assert_spy_called_once_with = assertSpyCalledOnceWith
     assert_spy_not_called_with = assertSpyNotCalledWith
     assert_spy_last_called_with = assertSpyLastCalledWith
     assert_spy_returned = assertSpyReturned

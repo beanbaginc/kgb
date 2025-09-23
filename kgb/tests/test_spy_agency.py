@@ -240,6 +240,129 @@ class TestCaseMixinTests(SpyAgency, TestCase):
         with self._check_assertion('do_math was called 2 times, not 3.'):
             self.assertSpyCallCount(obj.do_math.spy, 3)
 
+    def test_assertSpyCalledOnce_with_0_calls(self):
+        """Testing SpyAgency.assertSpyCalledOnce with 0 calls"""
+        obj = MathClass()
+        self.spy_on(obj.do_math)
+
+        # This should fail.
+        msg = 'do_math was not called.'
+
+        with self._check_assertion(msg):
+            self.assertSpyCalledOnce(obj.do_math)
+
+    def test_assertSpyCalledOnce_with_1_calls(self):
+        """Testing SpyAgency.assertSpyCalledOnce with 1 call"""
+        obj = MathClass()
+        self.spy_on(obj.do_math)
+
+        obj.do_math(1, b=4)
+
+        # These should not fail.
+        self.assertSpyCalledOnce(obj.do_math)
+        self.assertSpyCalledOnce(obj.do_math.spy)
+
+        # Check the aliases.
+        self.assert_spy_called_once(obj.do_math)
+        kgb.asserts.assert_spy_called_once(obj.do_math)
+
+    def test_assertSpyCalledOnce_with_2_calls(self):
+        """Testing SpyAgency.assertSpyCalledOnce with 2 calls"""
+        obj = MathClass()
+        self.spy_on(obj.do_math)
+
+        obj.do_math(1, b=4)
+        obj.do_math(2, b=8)
+
+        # This should fail.
+        msg = (
+            "do_math was not called exactly 1 time. It was called 2 times:\n"
+            "\n"
+            "Call 0:\n"
+            "  args=()\n"
+            "  kwargs={'a': 1, 'b': 4}\n"
+            "\n"
+            "Call 1:\n"
+            "  args=()\n"
+            "  kwargs={'a': 2, 'b': 8}"
+        )
+
+        with self._check_assertion(msg):
+            self.assertSpyCalledOnce(obj.do_math)
+
+    def test_assertSpyCalledOnceWith_with_0_calls(self):
+        """Testing SpyAgency.assertSpyCalledOnceWith with 0 calls"""
+        obj = MathClass()
+        self.spy_on(obj.do_math)
+
+        # This should fail.
+        msg = 'do_math was not called.'
+
+        with self._check_assertion(msg):
+            self.assertSpyCalledOnceWith(obj.do_math, a=1, b=2)
+
+    def test_assertSpyCalledOnceWith_with_1_call(self):
+        """Testing SpyAgency.assertSpyCalledOnceWith with 1 call"""
+        obj = MathClass()
+        self.spy_on(obj.do_math)
+
+        obj.do_math(1, b=4)
+
+        # This should not fail.
+        self.assertSpyCalledOnceWith(obj.do_math, a=1, b=4)
+        self.assertSpyCalledOnceWith(obj.do_math.spy, a=1, b=4)
+
+        # Check the aliases.
+        self.assert_spy_called_once_with(obj.do_math, a=1, b=4)
+        kgb.asserts.assert_spy_called_once_with(obj.do_math, a=1, b=4)
+
+    def test_assertSpyCalledOnceWith_with_1_calls_with_wrong_args(self):
+        """Testing SpyAgency.assertSpyCalledOnceWith with 1 call with wrong
+        arguments
+        """
+        obj = MathClass()
+        self.spy_on(obj.do_math)
+
+        obj.do_math(1, b=4)
+
+        # This should fail.
+        msg = (
+            "No call to do_math was passed args=(1,), kwargs={'b': 8}.\n"
+            "\n"
+            "The following calls were recorded:\n"
+            "\n"
+            "Call 0:\n"
+            "  args=()\n"
+            "  kwargs={'a': 1, 'b': 4}"
+        )
+
+        with self._check_assertion(msg):
+            self.assertSpyCalledOnceWith(obj.do_math, 1, b=8)
+
+    def test_assertSpyCalledOnceWith_with_2_calls(self):
+        """Testing SpyAgency.assertSpyCalledOnceWith with 2 calls"""
+        obj = MathClass()
+        self.spy_on(obj.do_math)
+
+        obj.do_math(1, b=4)
+        obj.do_math(2, b=8)
+
+        # This should fail.
+        msg = (
+            "do_math was not called exactly 1 time. It was called 2 times:\n"
+            "\n"
+            "Call 0:\n"
+            "  args=()\n"
+            "  kwargs={'a': 1, 'b': 4}\n"
+            "\n"
+            "Call 1:\n"
+            "  args=()\n"
+            "  kwargs={'a': 2, 'b': 8}"
+        )
+
+        with self._check_assertion(msg):
+            self.assertSpyCalledOnceWith(obj.do_math, 1, b=4)
+
     def test_assertSpyCalledWith_with_expected_arguments(self):
         """Testing SpyAgency.assertSpyCalledWith with expected arguments"""
         obj = MathClass()

@@ -2,6 +2,20 @@
 kgb Releases
 ============
 
+kgb 7.3 (9-December-2025)
+=========================
+
+* Added support for Python 3.14.
+
+* Added ``SpyAgency.get_spy()``, a utility method which returns the
+  ``FunctionSpy`` for a given function or method. This is particularly useful
+  when using type checkers, which are unaware that the function itself has been
+  replaced.
+
+* Fixed a ``DeprecationWarning`` which would appear when spying on generator
+  functions.
+
+
 kgb 7.2 (3-November-2024)
 =========================
 

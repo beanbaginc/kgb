@@ -40,6 +40,10 @@ class MathClass(object):
 
         return a * b
 
+    @staticmethod
+    def static_do_math(a=2, b=5, *args, **kwargs):
+        return a * b
+
 
 class TestCase(unittest.TestCase):
     """Base class for test cases for kgb."""
@@ -51,7 +55,6 @@ class TestCase(unittest.TestCase):
         self.orig_class_do_math = MathClass.class_do_math
 
     def tearDown(self):
-        MathClass.class_do_math = self.orig_class_do_math
         self.agency.unspy_all()
 
     def shortDescription(self):

@@ -11,6 +11,7 @@ import warnings
 from contextlib import contextmanager
 
 from kgb.errors import ExistingSpyError, IncompatibleFunctionError
+from kgb.ops import SpyOpReturn
 from kgb.pycompat import text_type
 from kgb.signature import FunctionSig
 from kgb.tests.base import MathClass, TestCase
@@ -213,7 +214,12 @@ class FunctionSpyTests(TestCase):
 
         self.assertTrue(hasattr(MathClass.class_do_math, 'spy'))
         self.assertIs(MathClass.class_do_math.spy, spy)
-        self.assertIs(MathClass.class_do_math, orig_method)
+
+        # Accessing a classmethod produces a new bound method each time, so
+        # this compares by equality rather than identity. The point is that
+        # spying happens in-place and the method still resolves to the original
+        # classmethod.
+        self.assertEqual(MathClass.class_do_math, orig_method)
 
         self.assertEqual(spy.func, fake_class_do_math)
         self.assertEqual(spy.orig_func, self.orig_class_do_math)
@@ -1506,6 +1512,46 @@ class FunctionSpyTests(TestCase):
 
         spy.unspy()
         self.assertEqual(MathClass.class_do_math.__dict__, func_dict)
+
+    def test_unspy_with_classmethod_restores_descriptor(self):
+        """Testing FunctionSpy.unspy with classmethod restores the classmethod
+        descriptor
+        """
+        self.assertIsInstance(MathClass.__dict__['class_do_math'],
+                              classmethod)
+
+        spy = self.agency.spy_on(MathClass.class_do_math,
+                                 owner=MathClass,
+                                 op=SpyOpReturn(0))
+        spy.unspy()
+
+        # The classmethod descriptor must be restored, not replaced with a
+        # plain function. Otherwise, calls through an instance would bind the
+        # instance as the first argument.
+        self.assertIsInstance(MathClass.__dict__['class_do_math'],
+                              classmethod)
+        self.assertEqual(MathClass().class_do_math(2, 5), 10)
+        self.assertEqual(MathClass.class_do_math(2, 5), 10)
+
+    def test_unspy_with_staticmethod(self):
+        """Testing FunctionSpy.unspy with staticmethod restores the
+        staticmethod descriptor
+        """
+        self.assertIsInstance(MathClass.__dict__['static_do_math'],
+                              staticmethod)
+
+        spy = self.agency.spy_on(MathClass.static_do_math,
+                                 owner=MathClass,
+                                 op=SpyOpReturn(0))
+        spy.unspy()
+
+        # The staticmethod descriptor must be restored, not replaced with a
+        # plain function. Otherwise, calls through an instance would bind the
+        # instance as the first argument.
+        self.assertIsInstance(MathClass.__dict__['static_do_math'],
+                              staticmethod)
+        self.assertEqual(MathClass().static_do_math(2, 5), 10)
+        self.assertEqual(MathClass.static_do_math(2, 5), 10)
 
     def test_unspy_with_classmethod_on_parent(self):
         """Testing FunctionSpy.unspy with classmethod on parent class"""

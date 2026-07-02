@@ -220,6 +220,15 @@ class FunctionSpy(object):
 
             # Now we can patch the owner to prevent conflicts between spies.
             self._patch_owner()
+        elif self.owner is not None:
+            # Store the attribute value exactly as it's defined on the owner,
+            # rather than the function itself. For a staticmethod or
+            # classmethod, accessing it through the owner unwraps the
+            # descriptor, and restoring that unwrapped function on unspy would
+            # replace the descriptor with a plain function. That would break
+            # later calls made through an instance.
+            self._owner_func_attr_value = \
+                self.owner.__dict__.get(self.func_name, self.orig_func)
         else:
             self._owner_func_attr_value = self.orig_func
 
